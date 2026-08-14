@@ -1,0 +1,10 @@
+{
+  "name": "ya-ponchik",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix iponchik -- -p 3001",
+    "build": "npm run build --prefix iponchik",
+    "start": "npm run start --prefix iponchik -- -p 3001",
+    "postinstall": "npm install --prefix iponchik"
+  }
+}
