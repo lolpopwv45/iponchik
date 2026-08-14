@@ -59,3 +59,30 @@ function isPointInPolygon(point: DeliveryPoint, polygon: DeliveryPoint[]): boole
 export function isAddressInZone(lat: number, lon: number): boolean {
   return isPointInPolygon({ lat, lon }, DELIVERY_POLYGON)
 }
+
+/** Доставка по городу (зона на карте) */
+export const CITY_DELIVERY = {
+  minOrder: 600,
+  fee: 100,
+} as const
+
+export function calcCityDeliveryPricing(subtotal: number, isDelivery: boolean) {
+  if (!isDelivery) {
+    return {
+      fee: 0,
+      minOrder: 0,
+      remaining: 0,
+      meetsMinimum: true,
+      payable: subtotal,
+    }
+  }
+
+  const remaining = Math.max(0, CITY_DELIVERY.minOrder - subtotal)
+  return {
+    fee: CITY_DELIVERY.fee,
+    minOrder: CITY_DELIVERY.minOrder,
+    remaining,
+    meetsMinimum: remaining === 0,
+    payable: subtotal + CITY_DELIVERY.fee,
+  }
+}

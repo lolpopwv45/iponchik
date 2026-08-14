@@ -167,3 +167,44 @@
   background: none !important;
   border: none !important;
 }
+
+@keyframes cart-badge-pop {
+  0% {
+    transform: scale(0.72);
+  }
+  55% {
+    transform: scale(1.22);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes add-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.16);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-cart-badge-pop {
+  animation: cart-badge-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: center;
+}
+
+.animate-add-pop {
+  animation: add-pop 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-cart-badge-pop,
+  .animate-add-pop {
+    animation: none;
+  }
+}

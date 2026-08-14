@@ -3,11 +3,14 @@
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { useState } from 'react'
-import { CheckCircle2, Loader2, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react'
+import { Check, CheckCircle2, Loader2, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react'
 import { AddressAutocomplete } from '@/components/address-autocomplete'
+import { OrderTimePicker } from '@/components/order-time-picker'
 import { reverseGeocodePoint, type AddressSuggestion } from '@/lib/geocoding'
-import { isAddressInZone } from '@/lib/deliveryZone'
+import { calcCityDeliveryPricing, isAddressInZone } from '@/lib/deliveryZone'
+import { formatAsapDuration, isOrderingOpen, isPickupSlotOpen, slotsForDate, type TimeMode, type TimeSlot } from '@/lib/order-time'
 import type { LatLng } from '@/lib/geo'
+import { cn } from '@/lib/utils'
 
 const DeliveryZoneMap = dynamic(
   () => import('@/components/delivery-zone-map').then((mod) => mod.DeliveryZoneMap),
@@ -72,10 +75,16 @@ export function CartDrawer({
   const [searchingAddress, setSearchingAddress] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [timeMode, setTimeMode] = useState<TimeMode>('asap')
+  const [timeSlot, setTimeSlot] = useState<TimeSlot | null>(null)
+  const [successHint, setSuccessHint] = useState('')
+  const [pdnConsent, setPdnConsent] = useState(false)
 
-  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const isDelivery = fulfillment === 'delivery'
+  const pricing = calcCityDeliveryPricing(subtotal, isDelivery)
   const checking = searchingAddress || zoneStatus === 'checking'
-  const deliveryAllowed = fulfillment === 'pickup' || zoneStatus === 'inside'
+  const deliveryAllowed = !isDelivery || zoneStatus === 'inside'
   const deliveryDetailsFilled =
     form.apartment.trim().length > 0 &&
     form.entrance.trim().length > 0 &&
@@ -84,7 +93,15 @@ export function CartDrawer({
     form.name.trim().length > 0 &&
     form.phone.trim().length > 0 &&
     deliveryAllowed &&
-    (fulfillment === 'pickup' || (form.address.trim().length > 0 && deliveryDetailsFilled))
+    pricing.meetsMinimum &&
+    (!isDelivery || (form.address.trim().length > 0 && deliveryDetailsFilled)) &&
+    (timeMode === 'asap' ||
+      (timeSlot != null &&
+        (isDelivery
+          ? slotsForDate(new Date()).some((item) => item.from === timeSlot.from)
+          : isPickupSlotOpen(timeSlot)))) &&
+    pdnConsent &&
+    isOrderingOpen()
 
   function resetCheckout() {
     setForm(EMPTY_FORM)
@@ -92,10 +109,16 @@ export function CartDrawer({
     setZoneStatus('idle')
     setCoords(null)
     setSearchingAddress(false)
+    setTimeMode('asap')
+    setTimeSlot(null)
+    setSuccessHint('')
+    setPdnConsent(false)
   }
 
   function handleFulfillmentChange(next: Fulfillment) {
     setFulfillment(next)
+    setTimeMode('asap')
+    setTimeSlot(null)
     if (next === 'pickup') {
       setZoneStatus('idle')
     } else if (coords) {
@@ -140,11 +163,8 @@ export function CartDrawer({
       setCoords({ lat, lng })
       setZoneStatus(isAddressInZone(lat, lng) ? 'inside' : 'outside')
     } catch {
-      setForm((prev) => ({
-        ...prev,
-        address: `${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}`,
-      }))
-      setZoneStatus(isAddressInZone(point.lat, point.lng) ? 'inside' : 'outside')
+      setForm((prev) => ({ ...prev, address: '' }))
+      setZoneStatus('incomplete')
     } finally {
       setSearchingAddress(false)
     }
@@ -156,10 +176,19 @@ export function CartDrawer({
 
     // -----------------------------------------------------------------
     // Точка интеграции с Supabase: сюда войдёт реальный insert в `orders`.
-    // Передайте fulfillment, address, apartment, entrance, intercom и coords.
-    // -----------------------------------------------------------------
+    // Передайте fulfillment, timeMode, timeSlot, address, apartment, entrance, intercom и coords.
+    // Самовывоз «как можно скорее» висит у повара, пока статус не станет «Готов к выдаче».
     await new Promise((resolve) => setTimeout(resolve, 600))
 
+    setSuccessHint(
+      isDelivery
+        ? timeMode === 'asap'
+          ? `Привезём примерно через ${formatAsapDuration()}.`
+          : `Привезём ${timeSlot?.label ?? 'в выбранный слот'}.`
+        : timeMode === 'asap'
+          ? 'Готовим с пылу жару. Заберите на Руставели, 24.'
+          : `Будет готов к ${timeSlot?.label ?? ''}. Заберите на ул. Руставели, 24.`,
+    )
     setSubmitting(false)
     setSuccess(true)
   }
@@ -211,8 +240,7 @@ export function CartDrawer({
               Спасибо! Заказ принят
             </h3>
             <p className="text-pretty leading-relaxed text-muted-foreground">
-              Ждём вас! Мы свяжемся с вами по указанному номеру, чтобы уточнить время готовности
-              заказа.
+              {successHint || 'Ждём вас! Мы свяжемся с вами по указанному номеру.'}
             </p>
             <button
               type="button"
@@ -234,7 +262,7 @@ export function CartDrawer({
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto px-6 py-5">
+            <div className="max-h-[55%] shrink-0 overflow-y-auto px-6 py-5">
               <ul className="flex flex-col gap-4">
                 {items.map((item) => (
                   <li key={item.id} className="flex items-center gap-4">
@@ -294,13 +322,38 @@ export function CartDrawer({
               </ul>
             </div>
 
-            <div className="flex max-h-[58%] flex-col gap-4 overflow-y-auto border-t border-border px-6 py-5">
-              <div className="flex items-center justify-between">
-                <span className="text-base font-semibold text-muted-foreground">Итого</span>
-                <span className="text-2xl font-extrabold tracking-tight text-card-foreground">
-                  {total} ₽
-                </span>
-              </div>
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto border-t border-border px-6 py-5">
+              {isDelivery ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-semibold text-muted-foreground">Товары</span>
+                    <span className="font-bold text-card-foreground">{subtotal} ₽</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-semibold text-muted-foreground">Доставка по городу</span>
+                    <span className="font-bold text-card-foreground">{pricing.fee} ₽</span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-border pt-2">
+                    <span className="text-base font-semibold text-muted-foreground">Итого</span>
+                    <span className="text-2xl font-extrabold tracking-tight text-card-foreground">
+                      {pricing.payable} ₽
+                    </span>
+                  </div>
+                  {!pricing.meetsMinimum && (
+                    <p className="text-xs font-semibold leading-relaxed text-red-600" role="status">
+                      Минимальный заказ на доставку {pricing.minOrder} ₽. Добавьте ещё{' '}
+                      {pricing.remaining} ₽.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <span className="text-base font-semibold text-muted-foreground">Итого</span>
+                  <span className="text-2xl font-extrabold tracking-tight text-card-foreground">
+                    {pricing.payable} ₽
+                  </span>
+                </div>
+              )}
 
               <form
                 onSubmit={(event) => {
@@ -335,6 +388,19 @@ export function CartDrawer({
                     Доставка
                   </button>
                 </div>
+                {isDelivery && (
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    По городу: минимальный заказ {pricing.minOrder} ₽, доставка {pricing.fee} ₽.
+                  </p>
+                )}
+
+                <OrderTimePicker
+                  fulfillment={fulfillment}
+                  mode={timeMode}
+                  slot={timeSlot}
+                  onModeChange={setTimeMode}
+                  onSlotChange={setTimeSlot}
+                />
 
                 {fulfillment === 'delivery' && (
                   <div className="flex flex-col gap-1.5">
@@ -462,12 +528,56 @@ export function CartDrawer({
                   />
                 </div>
 
+                <label htmlFor="cart-pdn-consent" className="flex cursor-pointer items-start gap-2.5">
+                  <input
+                    id="cart-pdn-consent"
+                    type="checkbox"
+                    required
+                    checked={pdnConsent}
+                    onChange={(event) => setPdnConsent(event.target.checked)}
+                    className="peer sr-only"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ring',
+                      pdnConsent
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-input bg-background',
+                    )}
+                  >
+                    {pdnConsent && <Check className="size-3.5" strokeWidth={2.5} />}
+                  </span>
+                  <span className="text-xs leading-relaxed text-foreground">
+                    Я даю{' '}
+                    <span className="font-bold">согласие</span> на обработку моих персональных
+                    данных, в соответствии с Федеральным законом от 27.07.2006 г. №152-ФЗ «О
+                    персональных данных», на условиях, определенных{' '}
+                    <a
+                      href="/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-bold underline-offset-2 hover:text-primary hover:underline"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      политикой
+                    </a>{' '}
+                    в области обработки и обеспечения безопасности персональных данных
+                  </span>
+                </label>
+
                 <button
                   type="submit"
                   disabled={!isFormValid || submitting || checking}
                   className="mt-1 flex items-center justify-center rounded-full bg-primary px-6 py-3.5 text-sm font-bold text-primary-foreground shadow-sm transition-shadow hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {submitting ? 'Оформляем заказ…' : `Оформить заказ на ${total} ₽`}
+                  {submitting
+                    ? 'Оформляем заказ…'
+                    : !isDelivery
+                      ? `Оформить заказ на ${pricing.payable} ₽`
+                      : !pricing.meetsMinimum
+                        ? `Ещё ${pricing.remaining} ₽ до минимума`
+                        : `Оформить заказ на ${pricing.payable} ₽`}
                 </button>
 
                 <p className="text-center text-xs leading-relaxed text-muted-foreground">
@@ -504,7 +614,11 @@ function ZoneFeedback({ checking, status }: { checking: boolean; status: ZoneSta
   if (status === 'outside') {
     return (
       <p className="text-xs font-semibold leading-relaxed text-red-600" role="alert">
-        К сожалению, этот адрес находится вне зоны нашей доставки. Выберите самовывоз
+        К сожалению, этот адрес находится вне зоны нашей доставки. Выберите самовывоз. Для такого
+        заказа необходимо позвонить оператору:{' '}
+        <a href="tel:+79084945053" className="underline underline-offset-2">
+          +7 (908) 494-50-53
+        </a>
       </p>
     )
   }
@@ -512,7 +626,7 @@ function ZoneFeedback({ checking, status }: { checking: boolean; status: ZoneSta
   if (status === 'incomplete') {
     return (
       <p className="text-xs font-semibold text-muted-foreground">
-        Уточните адрес до номера дома — без него нельзя проверить зону.
+        Не удалось прочитать улицу. Нажмите ближе к дому или выберите адрес из подсказок.
       </p>
     )
   }

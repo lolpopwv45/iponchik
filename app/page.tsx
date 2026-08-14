@@ -3,29 +3,13 @@
 import Image from 'next/image'
 import { useMemo, useState } from 'react'
 import { MapPin, Phone } from 'lucide-react'
-import { ActiveProductProvider } from '@/components/active-product-context'
+import { ActiveProductProvider, useActiveProduct } from '@/components/active-product-context'
 import { CartDrawer, type CartItem } from '@/components/cart-drawer'
 import { DeliveryInfo } from '@/components/DeliveryInfo'
 import { Header } from '@/components/header'
 import { ProductCard } from '@/components/product-card'
+import { ProductDetailModal, toProductDetail } from '@/components/product-detail-modal'
 import { CATEGORIES, PRODUCTS, type Category, type Product } from '@/lib/products'
-
-const INITIAL_CART: CartItem[] = [
-  {
-    id: 3,
-    name: 'Пончик классический',
-    price: 89,
-    image: '/images/product-donut-classic.png',
-    quantity: 2,
-  },
-  {
-    id: 6,
-    name: 'Синнабон с корицей',
-    price: 150,
-    image: '/images/product-cinnamon-roll.png',
-    quantity: 1,
-  },
-]
 
 export default function Page() {
   return (
@@ -36,7 +20,8 @@ export default function Page() {
 }
 
 function Storefront() {
-  const [cartItems, setCartItems] = useState<CartItem[]>(INITIAL_CART)
+  const { activeProduct, isPinned, clearActiveProduct } = useActiveProduct()
+  const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [cartOpen, setCartOpen] = useState(false)
   const [activeCategory, setActiveCategory] = useState<Category>('Все')
 
@@ -47,12 +32,12 @@ function Storefront() {
     return PRODUCTS.filter((product) => product.category === activeCategory)
   }, [activeCategory])
 
-  function handleAddToCart(product: Product) {
+  function handleAddToCart(product: Product, quantity = 1) {
     setCartItems((items) => {
       const existing = items.find((item) => item.id === product.id)
       if (existing) {
         return items.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item,
+          item.id === product.id ? { ...item, quantity: item.quantity + quantity } : item,
         )
       }
       return [
@@ -62,7 +47,7 @@ function Storefront() {
           name: product.name,
           price: product.price,
           image: product.image,
-          quantity: 1,
+          quantity,
         },
       ]
     })
@@ -88,11 +73,7 @@ function Storefront() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <Header
-        cartCount={cartCount}
-        onOpenCart={() => setCartOpen(true)}
-        onAddToCart={handleAddToCart}
-      />
+      <Header cartCount={cartCount} onOpenCart={() => setCartOpen(true)} />
 
       <section id="top" className="mx-auto max-w-6xl px-4 pb-12 pt-10 sm:px-6 sm:pt-16 lg:pt-20">
         <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
@@ -213,6 +194,16 @@ function Storefront() {
         onIncrement={handleIncrement}
         onDecrement={handleDecrement}
         onRemove={handleRemove}
+      />
+
+      <ProductDetailModal
+        product={isPinned && activeProduct ? toProductDetail(activeProduct) : null}
+        open={Boolean(isPinned && activeProduct)}
+        onClose={clearActiveProduct}
+        onAddToCart={(_detail, quantity) => {
+          if (!activeProduct) return
+          handleAddToCart(activeProduct, quantity)
+        }}
       />
     </main>
   )

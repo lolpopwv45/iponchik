@@ -1,9 +1,4 @@
-import {
-  geocodeYandexAddress,
-  hasYandexJsKey,
-  reverseGeocodeYandex,
-  suggestYandexAddresses,
-} from '@/lib/yandex-maps'
+import { geocodeYandexAddress, hasYandexJsKey, reverseGeocodeYandex, suggestYandexAddresses } from '@/lib/yandex-maps'
 
 export interface AddressSuggestion {
   id: string
@@ -14,26 +9,31 @@ export interface AddressSuggestion {
 
 export interface SuggestResponse {
   suggestions: AddressSuggestion[]
-  provider: 'dadata' | 'yandex' | 'mock'
+  provider: 'dadata' | 'yandex' | 'mock' | 'nominatim'
 }
 
 export async function fetchAddressSuggestions(query: string): Promise<SuggestResponse> {
+  let suggestions: AddressSuggestion[] = []
+  let provider: SuggestResponse['provider'] = 'yandex'
+
   if (hasYandexJsKey()) {
-    const suggestions = await suggestYandexAddresses(query)
-    return { suggestions, provider: 'yandex' }
+    try {
+      suggestions = await suggestYandexAddresses(query)
+    } catch {
+      suggestions = []
+    }
   }
 
-  const response = await fetch('/api/geocode/suggest', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query }),
-  })
-
-  if (!response.ok) {
-    throw new Error('Не удалось получить подсказки адреса')
+  if (suggestions.length === 0) {
+    const response = await fetch(`/api/geocode/search?q=${encodeURIComponent(query)}`)
+    if (response.ok) {
+      const data = (await response.json()) as SuggestResponse
+      suggestions = data.suggestions ?? []
+      provider = 'nominatim'
+    }
   }
 
-  return (await response.json()) as SuggestResponse
+  return { suggestions, provider }
 }
 
 export async function resolveSuggestionCoords(
@@ -42,31 +42,68 @@ export async function resolveSuggestionCoords(
   if (suggestion.lat != null && suggestion.lng != null) return suggestion
 
   if (hasYandexJsKey()) {
-    const geo = await geocodeYandexAddress(suggestion.value)
-    if (!geo) return suggestion
-    return { ...suggestion, value: geo.value, lat: geo.lat, lng: geo.lng }
+    try {
+      const geo = await geocodeYandexAddress(suggestion.value)
+      if (geo?.lat != null && geo.lng != null) {
+        return { ...suggestion, value: geo.value || suggestion.value, lat: geo.lat, lng: geo.lng }
+      }
+    } catch {
+      // JS-ключ Яндекса часто не открывает HTTP-геокодер
+    }
+  }
+
+  const response = await fetch(`/api/geocode/search?q=${encodeURIComponent(suggestion.value)}`)
+  if (response.ok) {
+    const data = (await response.json()) as SuggestResponse
+    const match = data.suggestions.find((item) => item.lat != null && item.lng != null)
+    if (match) {
+      return {
+        ...suggestion,
+        value: match.value || suggestion.value,
+        lat: match.lat,
+        lng: match.lng,
+      }
+    }
   }
 
   return suggestion
 }
 
 export async function reverseGeocodePoint(lat: number, lng: number): Promise<AddressSuggestion> {
-  if (hasYandexJsKey()) {
-    const geo = await reverseGeocodeYandex(lat, lng)
-    if (geo?.value) {
+  const response = await fetch(
+    `/api/geocode/reverse?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lng))}`,
+  )
+  if (response.ok) {
+    const data = (await response.json()) as { value?: string }
+    if (data.value && !looksLikeCoordinates(data.value)) {
       return {
         id: `map-${lat}-${lng}`,
-        value: geo.value,
-        lat: geo.lat,
-        lng: geo.lng,
+        value: data.value,
+        lat,
+        lng,
       }
     }
   }
 
-  return {
-    id: `map-${lat}-${lng}`,
-    value: `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
-    lat,
-    lng,
+  if (hasYandexJsKey()) {
+    try {
+      const geo = await reverseGeocodeYandex(lat, lng)
+      if (geo?.value && !looksLikeCoordinates(geo.value)) {
+        return {
+          id: `map-${lat}-${lng}`,
+          value: geo.value,
+          lat: geo.lat,
+          lng: geo.lng,
+        }
+      }
+    } catch {
+      // JS-ключ Яндекса не умеет HTTP-геокодер
+    }
   }
+
+  throw new Error('Не удалось определить адрес по точке на карте')
+}
+
+function looksLikeCoordinates(value: string) {
+  return /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(value.trim())
 }

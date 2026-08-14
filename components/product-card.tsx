@@ -1,7 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import { Plus } from 'lucide-react'
+import { Check, Plus } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useActiveProduct } from '@/components/active-product-context'
 import { BADGE_META, type Product } from '@/lib/products'
 import { cn } from '@/lib/utils'
@@ -12,19 +13,30 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, onAddToCart }: ProductCardProps) {
-  const { activeProduct, previewProduct, clearPreview, pinProduct } = useActiveProduct()
+  const { activeProduct, pinProduct } = useActiveProduct()
   const isActive = activeProduct?.id === product.id
+  const [justAdded, setJustAdded] = useState(false)
+  const [addPopKey, setAddPopKey] = useState(0)
+  const addedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (addedTimeoutRef.current) clearTimeout(addedTimeoutRef.current)
+    }
+  }, [])
+
+  function handleAddToCart(event: React.MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation()
+    onAddToCart(product)
+    setJustAdded(true)
+    setAddPopKey((key) => key + 1)
+    if (addedTimeoutRef.current) clearTimeout(addedTimeoutRef.current)
+    addedTimeoutRef.current = setTimeout(() => setJustAdded(false), 700)
+  }
 
   return (
     <article
       tabIndex={0}
-      onMouseEnter={() => previewProduct(product)}
-      onMouseLeave={() => clearPreview(product.id)}
-      onFocus={() => previewProduct(product)}
-      onBlur={(event) => {
-        if (event.currentTarget.contains(event.relatedTarget as Node | null)) return
-        clearPreview(product.id)
-      }}
       onClick={() => pinProduct(product)}
       aria-current={isActive ? 'true' : undefined}
       onKeyDown={(event) => {
@@ -77,14 +89,26 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
           <span className="text-lg font-extrabold text-foreground">{product.price} ₽</span>
           <button
             type="button"
-            onClick={(event) => {
-              event.stopPropagation()
-              onAddToCart(product)
-            }}
-            aria-label={`Добавить «${product.name}» в корзину`}
-            className="flex size-10 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-sm transition-shadow hover:shadow-md"
+            onClick={handleAddToCart}
+            aria-label={
+              justAdded
+                ? `«${product.name}» добавлен в корзину`
+                : `Добавить «${product.name}» в корзину`
+            }
+            className={cn(
+              'flex size-10 items-center justify-center rounded-full shadow-sm transition-[background-color,box-shadow] hover:shadow-md',
+              justAdded
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-accent text-accent-foreground',
+            )}
           >
-            <Plus className="size-5" aria-hidden="true" />
+            <span key={addPopKey} className={cn('flex', addPopKey > 0 && 'animate-add-pop')}>
+              {justAdded ? (
+                <Check className="size-5" aria-hidden="true" />
+              ) : (
+                <Plus className="size-5" aria-hidden="true" />
+              )}
+            </span>
           </button>
         </div>
       </div>

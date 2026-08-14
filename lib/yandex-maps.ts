@@ -1,6 +1,15 @@
+import { buildSearchVariants } from '@/lib/address-query'
+
 type YandexSuggestItem = {
   value: string
   displayName: string
+}
+
+type YandexGeoObject = {
+  geometry: { getCoordinates: () => [number, number] }
+  getAddressLine: () => string
+  getName?: () => string
+  properties?: { get: (key: string) => string | undefined }
 }
 
 type YandexMapsApi = {
@@ -14,10 +23,7 @@ type YandexMapsApi = {
     options?: { results?: number; kind?: string },
   ) => Promise<{
     geoObjects: {
-      get: (index: number) => {
-        geometry: { getCoordinates: () => [number, number] }
-        getAddressLine: () => string
-      } | null
+      get: (index: number) => YandexGeoObject | null
     }
   }>
 }
@@ -27,11 +33,6 @@ declare global {
     ymaps?: YandexMapsApi
   }
 }
-
-const CHELYABINSK_BOUNDS: [[number, number], [number, number]] = [
-  [55.05, 61.2],
-  [55.28, 61.65],
-]
 
 let mapsPromise: Promise<YandexMapsApi> | null = null
 
@@ -88,19 +89,35 @@ export function loadYandexMaps(): Promise<YandexMapsApi> {
 
 export async function suggestYandexAddresses(query: string) {
   const ymaps = await loadYandexMaps()
-  const text = /челябинск/i.test(query) ? query : `Челябинск, ${query}`
-  const items = await ymaps.suggest(text, {
-    results: 7,
-    boundedBy: CHELYABINSK_BOUNDS,
-  })
+  const variants = buildSearchVariants(query)
 
-  return items.map((item, index) => ({
-    id: `yandex-${index}-${item.value}`,
-    value: item.value,
-    displayName: item.displayName,
-    lat: null as number | null,
-    lng: null as number | null,
-  }))
+  const batches = await Promise.all(
+    variants.map(async (text) => {
+      try {
+        return await ymaps.suggest(text, { results: 10 })
+      } catch {
+        return []
+      }
+    }),
+  )
+
+  const seen = new Set<string>()
+  return batches.flat().flatMap((item, index) => {
+    const value = item.value || item.displayName
+    if (!value) return []
+    const key = value.toLowerCase()
+    if (seen.has(key)) return []
+    seen.add(key)
+    return [
+      {
+        id: `yandex-${index}-${value}`,
+        value,
+        displayName: item.displayName,
+        lat: null as number | null,
+        lng: null as number | null,
+      },
+    ]
+  })
 }
 
 export async function geocodeYandexAddress(address: string) {
@@ -119,13 +136,21 @@ export async function geocodeYandexAddress(address: string) {
 
 export async function reverseGeocodeYandex(lat: number, lon: number) {
   const ymaps = await loadYandexMaps()
-  const result = await ymaps.geocode([lat, lon], { results: 1 })
+  const result = await ymaps.geocode([lat, lon], { results: 1, kind: 'house' })
   const geoObject = result.geoObjects.get(0)
   if (!geoObject) return null
+
+  const value =
+    geoObject.getAddressLine?.() ||
+    geoObject.properties?.get('text') ||
+    geoObject.getName?.() ||
+    ''
+
+  if (!value.trim()) return null
 
   return {
     lat,
     lng: lon,
-    value: geoObject.getAddressLine(),
+    value: value.trim(),
   }
 }

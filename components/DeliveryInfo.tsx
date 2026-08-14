@@ -2,6 +2,7 @@
 
 import { useId, useState } from 'react'
 import { ChevronDown, Clock, CreditCard, Package, Truck, type LucideIcon } from 'lucide-react'
+import { CITY_DELIVERY } from '@/lib/deliveryZone'
 
 type SectionId = 'delivery' | 'pickup' | 'payment' | 'preorder'
 
@@ -99,16 +100,10 @@ function SectionBody({ id }: { id: SectionId }) {
     return (
       <ul className="flex flex-col gap-3">
         <InfoRow label="Доставка по городу">
-          Минимальный заказ 600 ₽. Стоимость доставки 100 ₽.
-        </InfoRow>
-        <InfoRow label="Отдаленные зоны">
-          Минимальный заказ 1500 ₽. Стоимость доставки 200 ₽.
+          Минимальный заказ {CITY_DELIVERY.minOrder} ₽. Стоимость доставки {CITY_DELIVERY.fee} ₽.
         </InfoRow>
         <InfoRow label="Акция" tone="promo">
           Пн-Чт с 12:00 до 15:00 доставка бесплатная (кроме отдаленных зон).
-        </InfoRow>
-        <InfoRow label="Внимание" tone="warning">
-          В минимальную сумму не входят товары из категории «Дополнительно».
         </InfoRow>
       </ul>
     )
@@ -118,7 +113,8 @@ function SectionBody({ id }: { id: SectionId }) {
     return (
       <p className="text-sm leading-relaxed text-muted-foreground">
         <span className="font-bold text-card-foreground">Самовывоз: </span>
-        ул. Руставели, 24.
+        ул. Руставели, 24. Готовим с пылу жару. Можно написать удобное время, но не раньше чем через
+        30 минут — это время на готовку. Заказы принимаем до 21:00.
       </p>
     )
   }
@@ -135,7 +131,8 @@ function SectionBody({ id }: { id: SectionId }) {
   return (
     <p className="text-sm leading-relaxed text-muted-foreground">
       <span className="font-bold text-card-foreground">Предзаказ: </span>
-      Доступен выбор любой даты и времени.
+      «Как можно скорее» или слот по часам. Слот блокируется за 2 часа до начала: с 10:00 можно
+      заказать только на 12:00. Доставка от 60 минут. Заказы до 21:00, кухня с 8:00 до 22:00.
     </p>
   )
 }
@@ -147,21 +144,12 @@ function InfoRow({
 }: {
   label: string
   children: string
-  tone?: 'default' | 'promo' | 'warning'
+  tone?: 'default' | 'promo'
 }) {
   const toneClass =
-    tone === 'promo'
-      ? 'bg-primary/8 ring-primary/15'
-      : tone === 'warning'
-        ? 'bg-accent/8 ring-accent/15'
-        : 'bg-muted/70 ring-transparent'
+    tone === 'promo' ? 'bg-primary/8 ring-primary/15' : 'bg-muted/70 ring-transparent'
 
-  const labelClass =
-    tone === 'promo'
-      ? 'text-primary'
-      : tone === 'warning'
-        ? 'text-accent'
-        : 'text-card-foreground'
+  const labelClass = tone === 'promo' ? 'text-primary' : 'text-card-foreground'
 
   return (
     <li className={`rounded-2xl px-3.5 py-3 ring-1 ${toneClass}`}>

@@ -19,6 +19,7 @@ import {
 // ---------------------------------------------------------------------------
 
 type OrderStatus = 'Новый' | 'Готовится' | 'Готов к выдаче'
+type Fulfillment = 'pickup' | 'delivery'
 
 interface Order {
   id: string
@@ -28,6 +29,8 @@ interface Order {
   total: number
   status: OrderStatus
   time: string
+  fulfillment: Fulfillment
+  scheduled: string
 }
 
 interface Product {
@@ -52,17 +55,21 @@ const INITIAL_ORDERS: Order[] = [
     phone: '+7 999 123-45-67',
     items: '2× Пончик классический, 1× Синнабон',
     total: 328,
-    status: 'Новый',
+    status: 'Готовится',
     time: '14:12',
+    fulfillment: 'pickup',
+    scheduled: 'Как можно скорее',
   },
   {
     id: '#1041',
     customerName: 'Игорь Петров',
     phone: '+7 985 552-01-19',
     items: '1× Пицца пепперони, 2× Пирожок с картофелем',
-    total: 540,
+    total: 640,
     status: 'Готовится',
     time: '14:05',
+    fulfillment: 'delivery',
+    scheduled: 'Как можно скорее (~2 ч)',
   },
   {
     id: '#1040',
@@ -72,15 +79,19 @@ const INITIAL_ORDERS: Order[] = [
     total: 267,
     status: 'Готов к выдаче',
     time: '13:58',
+    fulfillment: 'pickup',
+    scheduled: '16:00–17:00',
   },
   {
     id: '#1039',
     customerName: 'Дмитрий Волков',
     phone: '+7 903 214-98-45',
     items: '1× Пицца маргарита, 1× Пончик классический',
-    total: 419,
-    status: 'Готов к выдаче',
+    total: 519,
+    status: 'Новый',
     time: '13:47',
+    fulfillment: 'delivery',
+    scheduled: '18:00–19:00',
   },
 ]
 
@@ -307,28 +318,43 @@ function OrdersTab({
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="size-3.5 shrink-0" aria-hidden="true" />
-                <span>{order.time}</span>
+                <span>
+                  {order.fulfillment === 'delivery' ? 'Доставка' : 'Самовывоз'} · {order.scheduled}
+                </span>
               </div>
+              <p className="text-xs text-gray-400">Оформлен в {order.time}</p>
             </div>
 
             <p className="rounded-xl bg-gray-50 px-3 py-2.5 text-sm text-gray-600">
               {order.items}
             </p>
 
-            <div className="flex items-center justify-between gap-3 border-t border-gray-100 pt-4">
-              <span className="text-lg font-extrabold text-gray-900">{order.total} ₽</span>
+            <div className="flex flex-col gap-3 border-t border-gray-100 pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-lg font-extrabold text-gray-900">{order.total} ₽</span>
 
-              <select
-                value={order.status}
-                onChange={(e) => onStatusChange(order.id, e.target.value as OrderStatus)}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-              >
-                {STATUS_FLOW.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
+                <select
+                  value={order.status}
+                  onChange={(e) => onStatusChange(order.id, e.target.value as OrderStatus)}
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                >
+                  {STATUS_FLOW.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {order.fulfillment === 'pickup' && order.status !== 'Готов к выдаче' && (
+                <button
+                  type="button"
+                  onClick={() => onStatusChange(order.id, 'Готов к выдаче')}
+                  className="w-full rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-orange-600"
+                >
+                  Готово — можно выдавать
+                </button>
+              )}
             </div>
           </div>
         ))}

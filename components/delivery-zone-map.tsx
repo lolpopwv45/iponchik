@@ -139,9 +139,12 @@ export function DeliveryZoneMap({ customer, status, visible = true, onPick }: De
         ref={containerRef}
         className="z-0 h-52 w-full cursor-crosshair [&_.leaflet-control-zoom]:border-0 [&_.leaflet-control-zoom-in]:rounded-t-lg [&_.leaflet-control-zoom-out]:rounded-b-lg [&_.leaflet-pane]:!z-0 [&_.leaflet-top]:!z-10"
       />
-      <div className="flex flex-wrap gap-x-3 gap-y-1 bg-secondary px-3 py-1.5 text-[11px] font-semibold text-muted-foreground">
-        <span>Нажмите на карту, чтобы выбрать адрес</span>
-        {customer ? <span>{status === 'outside' ? '📍 вне зоны' : '📍 ваш адрес'}</span> : null}
+      <div className="flex flex-col gap-0.5 bg-secondary px-3 py-1.5 text-[11px] font-semibold text-muted-foreground">
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          <span>Нажмите на карту, чтобы выбрать адрес</span>
+          {customer ? <span>{status === 'outside' ? '📍 вне зоны' : '📍 ваш адрес'}</span> : null}
+        </div>
+        <p className="font-medium">*отдаленные районы уточнять у оператора</p>
       </div>
     </div>
   )
