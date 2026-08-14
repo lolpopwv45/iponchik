@@ -1,29 +1,21 @@
 'use client'
 
 import Image from 'next/image'
+import dynamic from 'next/dynamic'
 import { useState } from 'react'
-import { Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react'
+import { CheckCircle2, Loader2, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react'
+import { AddressAutocomplete } from '@/components/address-autocomplete'
+import { reverseGeocodePoint, type AddressSuggestion } from '@/lib/geocoding'
+import { isAddressInZone } from '@/lib/deliveryZone'
+import type { LatLng } from '@/lib/geo'
 
-// ---------------------------------------------------------------------------
-// Корзина и оформление заказа для кулинарии «Я-пончик».
-//
-// Компонент полностью самодостаточен: количество товаров и данные формы
-// хранятся в локальном состоянии (useState). Родитель управляет только
-// списком товаров (items) и колбэками изменения количества/удаления —
-// это удобно для последующей интеграции с реальной корзиной.
-//
-// Готово к подключению Supabase: функция `submitOrder` ниже — единственное
-// место, которое нужно заменить на реальный insert в таблицу `orders`,
-// например:
-//
-//   const { error } = await supabase.from('orders').insert({
-//     customer_name: form.name,
-//     customer_phone: form.phone,
-//     comment: form.comment,
-//     items: items.map(({ id, quantity, price }) => ({ id, quantity, price })),
-//     total,
-//   })
-// ---------------------------------------------------------------------------
+const DeliveryZoneMap = dynamic(
+  () => import('@/components/delivery-zone-map').then((mod) => mod.DeliveryZoneMap),
+  {
+    ssr: false,
+    loading: () => <div className="h-44 animate-pulse rounded-2xl bg-secondary" aria-hidden="true" />,
+  },
+)
 
 export interface CartItem {
   id: number
@@ -42,10 +34,27 @@ interface CartDrawerProps {
   onRemove: (id: number) => void
 }
 
+type Fulfillment = 'pickup' | 'delivery'
+type ZoneStatus = 'idle' | 'checking' | 'inside' | 'outside' | 'incomplete'
+
 interface CheckoutForm {
   name: string
   phone: string
   comment: string
+  address: string
+  apartment: string
+  entrance: string
+  intercom: string
+}
+
+const EMPTY_FORM: CheckoutForm = {
+  name: '',
+  phone: '',
+  comment: '',
+  address: '',
+  apartment: '',
+  entrance: '',
+  intercom: '',
 }
 
 export function CartDrawer({
@@ -56,12 +65,90 @@ export function CartDrawer({
   onDecrement,
   onRemove,
 }: CartDrawerProps) {
-  const [form, setForm] = useState<CheckoutForm>({ name: '', phone: '', comment: '' })
+  const [form, setForm] = useState<CheckoutForm>(EMPTY_FORM)
+  const [fulfillment, setFulfillment] = useState<Fulfillment>('pickup')
+  const [zoneStatus, setZoneStatus] = useState<ZoneStatus>('idle')
+  const [coords, setCoords] = useState<LatLng | null>(null)
+  const [searchingAddress, setSearchingAddress] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
 
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const isFormValid = form.name.trim().length > 0 && form.phone.trim().length > 0
+  const checking = searchingAddress || zoneStatus === 'checking'
+  const deliveryAllowed = fulfillment === 'pickup' || zoneStatus === 'inside'
+  const deliveryDetailsFilled =
+    form.apartment.trim().length > 0 &&
+    form.entrance.trim().length > 0 &&
+    form.intercom.trim().length > 0
+  const isFormValid =
+    form.name.trim().length > 0 &&
+    form.phone.trim().length > 0 &&
+    deliveryAllowed &&
+    (fulfillment === 'pickup' || (form.address.trim().length > 0 && deliveryDetailsFilled))
+
+  function resetCheckout() {
+    setForm(EMPTY_FORM)
+    setFulfillment('pickup')
+    setZoneStatus('idle')
+    setCoords(null)
+    setSearchingAddress(false)
+  }
+
+  function handleFulfillmentChange(next: Fulfillment) {
+    setFulfillment(next)
+    if (next === 'pickup') {
+      setZoneStatus('idle')
+    } else if (coords) {
+      setZoneStatus(isAddressInZone(coords.lat, coords.lng) ? 'inside' : 'outside')
+    } else if (form.address.trim()) {
+      setZoneStatus('idle')
+    }
+  }
+
+  function handleAddressChange(value: string) {
+    setForm((prev) => ({ ...prev, address: value }))
+    setCoords(null)
+    setZoneStatus('idle')
+  }
+
+  function handleAddressSelect(suggestion: AddressSuggestion) {
+    setZoneStatus('checking')
+
+    window.setTimeout(() => {
+      if (suggestion.lat == null || suggestion.lng == null) {
+        setCoords(null)
+        setZoneStatus('incomplete')
+        return
+      }
+
+      const point = { lat: suggestion.lat, lng: suggestion.lng }
+      setCoords(point)
+      setZoneStatus(isAddressInZone(point.lat, point.lng) ? 'inside' : 'outside')
+    }, 220)
+  }
+
+  async function handleMapPick(point: LatLng) {
+    setCoords(point)
+    setZoneStatus('checking')
+    setSearchingAddress(true)
+
+    try {
+      const suggestion = await reverseGeocodePoint(point.lat, point.lng)
+      setForm((prev) => ({ ...prev, address: suggestion.value }))
+      const lat = suggestion.lat ?? point.lat
+      const lng = suggestion.lng ?? point.lng
+      setCoords({ lat, lng })
+      setZoneStatus(isAddressInZone(lat, lng) ? 'inside' : 'outside')
+    } catch {
+      setForm((prev) => ({
+        ...prev,
+        address: `${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}`,
+      }))
+      setZoneStatus(isAddressInZone(point.lat, point.lng) ? 'inside' : 'outside')
+    } finally {
+      setSearchingAddress(false)
+    }
+  }
 
   async function submitOrder() {
     if (!isFormValid || items.length === 0) return
@@ -69,7 +156,7 @@ export function CartDrawer({
 
     // -----------------------------------------------------------------
     // Точка интеграции с Supabase: сюда войдёт реальный insert в `orders`.
-    // Сейчас — заглушка, имитирующая сетевой запрос.
+    // Передайте fulfillment, address, apartment, entrance, intercom и coords.
     // -----------------------------------------------------------------
     await new Promise((resolve) => setTimeout(resolve, 600))
 
@@ -79,17 +166,14 @@ export function CartDrawer({
 
   function handleClose() {
     onClose()
-    // Сбрасываем экран успеха после закрытия, чтобы при следующем открытии
-    // корзина снова показывала список товаров.
     setTimeout(() => {
       setSuccess(false)
-      setForm({ name: '', phone: '', comment: '' })
+      resetCheckout()
     }, 300)
   }
 
   return (
     <>
-      {/* Backdrop */}
       <div
         onClick={handleClose}
         aria-hidden="true"
@@ -98,7 +182,6 @@ export function CartDrawer({
         }`}
       />
 
-      {/* Panel */}
       <aside
         role="dialog"
         aria-modal="true"
@@ -107,11 +190,8 @@ export function CartDrawer({
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        {/* Header */}
         <div className="flex items-center justify-between gap-4 border-b border-border px-6 py-5">
-          <h2 className="text-xl font-extrabold tracking-tight text-card-foreground">
-            Ваш заказ
-          </h2>
+          <h2 className="text-xl font-extrabold tracking-tight text-card-foreground">Ваш заказ</h2>
           <button
             type="button"
             onClick={handleClose}
@@ -123,9 +203,6 @@ export function CartDrawer({
         </div>
 
         {success ? (
-          // -------------------------------------------------------------
-          // Success state
-          // -------------------------------------------------------------
           <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
             <div className="flex size-16 items-center justify-center rounded-full bg-accent/15 text-accent">
               <ShoppingBag className="size-8" aria-hidden="true" />
@@ -134,8 +211,8 @@ export function CartDrawer({
               Спасибо! Заказ принят
             </h3>
             <p className="text-pretty leading-relaxed text-muted-foreground">
-              Ждём вас! Мы свяжемся с вами по указанному номеру, чтобы уточнить время
-              готовности заказа.
+              Ждём вас! Мы свяжемся с вами по указанному номеру, чтобы уточнить время готовности
+              заказа.
             </p>
             <button
               type="button"
@@ -146,9 +223,6 @@ export function CartDrawer({
             </button>
           </div>
         ) : items.length === 0 ? (
-          // -------------------------------------------------------------
-          // Empty state
-          // -------------------------------------------------------------
           <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 text-center">
             <div className="flex size-16 items-center justify-center rounded-full bg-secondary text-muted-foreground">
               <ShoppingBag className="size-7" aria-hidden="true" />
@@ -160,7 +234,6 @@ export function CartDrawer({
           </div>
         ) : (
           <>
-            {/* Item list */}
             <div className="flex-1 overflow-y-auto px-6 py-5">
               <ul className="flex flex-col gap-4">
                 {items.map((item) => (
@@ -221,8 +294,7 @@ export function CartDrawer({
               </ul>
             </div>
 
-            {/* Total + Checkout form */}
-            <div className="flex flex-col gap-5 border-t border-border px-6 py-5">
+            <div className="flex max-h-[58%] flex-col gap-4 overflow-y-auto border-t border-border px-6 py-5">
               <div className="flex items-center justify-between">
                 <span className="text-base font-semibold text-muted-foreground">Итого</span>
                 <span className="text-2xl font-extrabold tracking-tight text-card-foreground">
@@ -237,6 +309,109 @@ export function CartDrawer({
                 }}
                 className="flex flex-col gap-3"
               >
+                <div className="grid grid-cols-2 gap-2" role="group" aria-label="Способ получения">
+                  <button
+                    type="button"
+                    onClick={() => handleFulfillmentChange('pickup')}
+                    aria-pressed={fulfillment === 'pickup'}
+                    className={`rounded-2xl px-3 py-2.5 text-sm font-bold transition-colors ${
+                      fulfillment === 'pickup'
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'bg-secondary text-secondary-foreground hover:bg-secondary/70'
+                    }`}
+                  >
+                    Самовывоз
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleFulfillmentChange('delivery')}
+                    aria-pressed={fulfillment === 'delivery'}
+                    className={`rounded-2xl px-3 py-2.5 text-sm font-bold transition-colors ${
+                      fulfillment === 'delivery'
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'bg-secondary text-secondary-foreground hover:bg-secondary/70'
+                    }`}
+                  >
+                    Доставка
+                  </button>
+                </div>
+
+                {fulfillment === 'delivery' && (
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="cart-address" className="text-sm font-semibold text-card-foreground">
+                      Адрес доставки
+                    </label>
+                    <AddressAutocomplete
+                      id="cart-address"
+                      value={form.address}
+                      onChange={handleAddressChange}
+                      onSelect={handleAddressSelect}
+                      onSearchingChange={setSearchingAddress}
+                    />
+                    <ZoneFeedback checking={checking} status={zoneStatus} />
+                    <DeliveryZoneMap
+                      customer={coords}
+                      status={zoneStatus}
+                      visible={open}
+                      onPick={handleMapPick}
+                    />
+                    {zoneStatus === 'inside' && (
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="flex flex-col gap-1.5">
+                          <label htmlFor="cart-apartment" className="text-xs font-semibold text-card-foreground">
+                            Квартира
+                          </label>
+                          <input
+                            id="cart-apartment"
+                            type="text"
+                            required
+                            inputMode="numeric"
+                            value={form.apartment}
+                            onChange={(event) =>
+                              setForm((prev) => ({ ...prev, apartment: event.target.value }))
+                            }
+                            placeholder="12"
+                            className="rounded-2xl border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <label htmlFor="cart-entrance" className="text-xs font-semibold text-card-foreground">
+                            Подъезд
+                          </label>
+                          <input
+                            id="cart-entrance"
+                            type="text"
+                            required
+                            inputMode="numeric"
+                            value={form.entrance}
+                            onChange={(event) =>
+                              setForm((prev) => ({ ...prev, entrance: event.target.value }))
+                            }
+                            placeholder="2"
+                            className="rounded-2xl border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <label htmlFor="cart-intercom" className="text-xs font-semibold text-card-foreground">
+                            Домофон
+                          </label>
+                          <input
+                            id="cart-intercom"
+                            type="text"
+                            required
+                            value={form.intercom}
+                            onChange={(event) =>
+                              setForm((prev) => ({ ...prev, intercom: event.target.value }))
+                            }
+                            placeholder="12K34"
+                            className="rounded-2xl border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="cart-name" className="text-sm font-semibold text-card-foreground">
                     Имя
@@ -269,7 +444,7 @@ export function CartDrawer({
 
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="cart-comment" className="text-sm font-semibold text-card-foreground">
-                    Комментарий или время самовывоза
+                    Комментарий
                   </label>
                   <textarea
                     id="cart-comment"
@@ -278,14 +453,18 @@ export function CartDrawer({
                     onChange={(event) =>
                       setForm((prev) => ({ ...prev, comment: event.target.value }))
                     }
-                    placeholder="Например: заберу в 18:30"
+                    placeholder={
+                      fulfillment === 'pickup'
+                        ? 'Например: заберу в 18:30'
+                        : 'Этаж, комментарий курьеру'
+                    }
                     className="resize-none rounded-2xl border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  disabled={!isFormValid || submitting}
+                  disabled={!isFormValid || submitting || checking}
                   className="mt-1 flex items-center justify-center rounded-full bg-primary px-6 py-3.5 text-sm font-bold text-primary-foreground shadow-sm transition-shadow hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {submitting ? 'Оформляем заказ…' : `Оформить заказ на ${total} ₽`}
@@ -300,5 +479,45 @@ export function CartDrawer({
         )}
       </aside>
     </>
+  )
+}
+
+function ZoneFeedback({ checking, status }: { checking: boolean; status: ZoneStatus }) {
+  if (checking) {
+    return (
+      <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+        <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+        Проверяем адрес…
+      </p>
+    )
+  }
+
+  if (status === 'inside') {
+    return (
+      <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+        <CheckCircle2 className="size-3.5" aria-hidden="true" />
+        Отличный адрес, доставим быстро!
+      </p>
+    )
+  }
+
+  if (status === 'outside') {
+    return (
+      <p className="text-xs font-semibold leading-relaxed text-red-600" role="alert">
+        К сожалению, этот адрес находится вне зоны нашей доставки. Выберите самовывоз
+      </p>
+    )
+  }
+
+  if (status === 'incomplete') {
+    return (
+      <p className="text-xs font-semibold text-muted-foreground">
+        Уточните адрес до номера дома — без него нельзя проверить зону.
+      </p>
+    )
+  }
+
+  return (
+    <p className="text-xs text-muted-foreground">Выберите адрес из списка подсказок</p>
   )
 }

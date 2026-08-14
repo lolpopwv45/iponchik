@@ -1,0 +1,148 @@
+'use client'
+
+import { useEffect, useRef } from 'react'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+import { DELIVERY_ZONE_POLYGON, RESTAURANT_LOCATION, type LatLng } from '@/lib/geo'
+
+type ZoneStatus = 'idle' | 'checking' | 'inside' | 'outside' | 'incomplete'
+
+interface DeliveryZoneMapProps {
+  customer: LatLng | null
+  status: ZoneStatus
+  visible?: boolean
+  onPick?: (point: LatLng) => void
+}
+
+function markerIcon(bg: string, emoji: string) {
+  return L.divIcon({
+    className: 'delivery-map-pin',
+    html: `<span style="
+      display:flex;align-items:center;justify-content:center;
+      width:32px;height:32px;border-radius:9999px;
+      background:${bg};box-shadow:0 2px 8px rgba(0,0,0,.25);
+      font-size:16px;line-height:1;
+    ">${emoji}</span>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+  })
+}
+
+const ZONE_COLORS = {
+  idle: { color: '#ea580c', fill: '#f97316' },
+  checking: { color: '#ea580c', fill: '#f97316' },
+  incomplete: { color: '#ea580c', fill: '#f97316' },
+  inside: { color: '#059669', fill: '#10b981' },
+  outside: { color: '#dc2626', fill: '#ef4444' },
+} as const
+
+export function DeliveryZoneMap({ customer, status, visible = true, onPick }: DeliveryZoneMapProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<L.Map | null>(null)
+  const polygonRef = useRef<L.Polygon | null>(null)
+  const customerMarkerRef = useRef<L.Marker | null>(null)
+  const onPickRef = useRef(onPick)
+  onPickRef.current = onPick
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return
+
+    const map = L.map(containerRef.current, {
+      zoomControl: false,
+      attributionControl: false,
+      scrollWheelZoom: true,
+    })
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+    }).addTo(map)
+
+    L.control.zoom({ position: 'topright' }).addTo(map)
+
+    const polygon = L.polygon(
+      DELIVERY_ZONE_POLYGON.map((point) => [point.lat, point.lng] as L.LatLngExpression),
+      {
+        color: ZONE_COLORS.idle.color,
+        fillColor: ZONE_COLORS.idle.fill,
+        fillOpacity: 0.22,
+        weight: 2,
+        interactive: false,
+      },
+    ).addTo(map)
+
+    L.marker([RESTAURANT_LOCATION.lat, RESTAURANT_LOCATION.lng], {
+      icon: markerIcon('#f97316', '🍩'),
+      interactive: false,
+    })
+      .addTo(map)
+      .bindTooltip('Я-пончик · Руставели, 24')
+
+    map.fitBounds(polygon.getBounds(), { padding: [18, 18] })
+
+    map.on('click', (event) => {
+      onPickRef.current?.({ lat: event.latlng.lat, lng: event.latlng.lng })
+    })
+
+    mapRef.current = map
+    polygonRef.current = polygon
+
+    const resize = window.setTimeout(() => map.invalidateSize(), 250)
+
+    return () => {
+      window.clearTimeout(resize)
+      map.remove()
+      mapRef.current = null
+      polygonRef.current = null
+      customerMarkerRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    const map = mapRef.current
+    const polygon = polygonRef.current
+    if (!map || !polygon) return
+
+    map.invalidateSize()
+
+    const palette = ZONE_COLORS[status]
+    polygon.setStyle({
+      color: palette.color,
+      fillColor: palette.fill,
+      fillOpacity: 0.22,
+      weight: 2,
+    })
+
+    customerMarkerRef.current?.remove()
+    customerMarkerRef.current = null
+
+    if (customer) {
+      const marker = L.marker([customer.lat, customer.lng], {
+        icon: markerIcon(status === 'outside' ? '#dc2626' : '#059669', '📍'),
+        interactive: false,
+      }).addTo(map)
+      customerMarkerRef.current = marker
+
+      const latlng = L.latLng(customer.lat, customer.lng)
+      if (!map.getBounds().contains(latlng)) {
+        const bounds = L.latLngBounds(
+          DELIVERY_ZONE_POLYGON.map((point) => [point.lat, point.lng] as L.LatLngTuple),
+        )
+        bounds.extend(customer)
+        map.flyToBounds(bounds, { padding: [28, 28], duration: 0.7, maxZoom: 14 })
+      }
+    }
+  }, [customer, status, visible])
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border">
+      <div
+        ref={containerRef}
+        className="z-0 h-52 w-full cursor-crosshair [&_.leaflet-control-zoom]:border-0 [&_.leaflet-control-zoom-in]:rounded-t-lg [&_.leaflet-control-zoom-out]:rounded-b-lg [&_.leaflet-pane]:!z-0 [&_.leaflet-top]:!z-10"
+      />
+      <div className="flex flex-wrap gap-x-3 gap-y-1 bg-secondary px-3 py-1.5 text-[11px] font-semibold text-muted-foreground">
+        <span>Нажмите на карту, чтобы выбрать адрес</span>
+        {customer ? <span>{status === 'outside' ? '📍 вне зоны' : '📍 ваш адрес'}</span> : null}
+      </div>
+    </div>
+  )
+}

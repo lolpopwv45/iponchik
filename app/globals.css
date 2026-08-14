@@ -162,3 +162,8 @@
     @apply bg-background text-foreground;
   }
 }
+
+.delivery-map-pin {
+  background: none !important;
+  border: none !important;
+}
