@@ -82,7 +82,7 @@ export function OrderTimePicker({
             onClick={() => onModeChange('asap')}
             className={cn(slotButtonClass(mode === 'asap', true), 'col-span-3')}
           >
-            Как можно скорее
+            Побыстрее
           </button>
 
           {TIME_SLOTS.map((item) => {
@@ -114,7 +114,7 @@ export function OrderTimePicker({
               onClick={() => onModeChange('asap')}
               className={cn(slotButtonClass(mode === 'asap', true), 'min-w-0 flex-1 rounded-2xl py-2.5 text-sm')}
             >
-              Как можно скорее
+              Побыстрее
             </button>
             <label htmlFor="pickup-time" className="sr-only">
               Время самовывоза, 24 часа
@@ -144,7 +144,7 @@ export function OrderTimePicker({
 
       {isDelivery ? (
         <p className="text-[11px] text-muted-foreground">
-          Доставка от 60 минут, точное время у оператора
+          «Побыстрее» — привезём примерно в течение 2 часов: час на готовку и час на дорогу
         </p>
       ) : null}
     </fieldset>

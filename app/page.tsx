@@ -4,7 +4,8 @@ import Image from 'next/image'
 import { useMemo, useState } from 'react'
 import { MapPin, Phone } from 'lucide-react'
 import { ActiveProductProvider, useActiveProduct } from '@/components/active-product-context'
-import { CartDrawer, type CartItem } from '@/components/cart-drawer'
+import { CartDrawer } from '@/components/cart-drawer'
+import type { CartItem } from '@/lib/cart'
 import { DeliveryInfo } from '@/components/DeliveryInfo'
 import { Header } from '@/components/header'
 import { ProductCard } from '@/components/product-card'
@@ -48,6 +49,7 @@ function Storefront() {
           price: product.price,
           image: product.image,
           quantity,
+          badges: product.badges,
         },
       ]
     })
@@ -194,6 +196,7 @@ function Storefront() {
         onIncrement={handleIncrement}
         onDecrement={handleDecrement}
         onRemove={handleRemove}
+        onClear={() => setCartItems([])}
       />
 
       <ProductDetailModal

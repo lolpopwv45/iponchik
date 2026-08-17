@@ -2,9 +2,11 @@ export const KITCHEN_HOUR_START = 8
 export const KITCHEN_HOUR_END = 22
 export const ORDER_HOUR_START = 10
 export const ORDER_HOUR_END = 21
-export const DELIVERY_ASAP_HOURS = 1
+export const COOK_ASAP_HOURS = 1
+export const DELIVERY_ASAP_HOURS = 2
 export const SLOT_LOCK_HOURS = 2
 export const PICKUP_SLOT_LOCK_MINUTES = 30
+export const DISPLAY_TIME_ZONE = 'Asia/Yekaterinburg'
 
 export interface TimeSlot {
   from: number
@@ -103,8 +105,20 @@ export function isPickupSlotOpen(slot: TimeSlot, now = new Date()) {
   return pickupTimeError(slot, now) == null
 }
 
-export function formatAsapDuration() {
-  return '60 минут'
+export function formatDeliveryAsapWindow() {
+  return 'примерно в течение 2 часов'
+}
+
+export function addHoursToIso(iso: string, hours: number) {
+  return new Date(new Date(iso).getTime() + hours * 60 * 60 * 1000)
+}
+
+export function formatClock(date: Date) {
+  return date.toLocaleTimeString('ru-RU', {
+    timeZone: DISPLAY_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 /** Заказы до 21:00 включительно, кухня до 22:00. */
@@ -127,11 +141,7 @@ export function slotsForDate(date: Date, now = new Date()) {
   return TIME_SLOTS.filter((slot) => isSlotOpen(slot, now))
 }
 
-export function formatOrderTime(mode: TimeMode, slot: TimeSlot | null, fulfillment: 'pickup' | 'delivery') {
-  if (mode === 'asap') {
-    return fulfillment === 'delivery'
-      ? `Как можно скорее (~${formatAsapDuration()})`
-      : 'Как можно скорее — готовим с пылу жару'
-  }
+export function formatOrderTime(mode: TimeMode, slot: TimeSlot | null, _fulfillment: 'pickup' | 'delivery') {
+  if (mode === 'asap') return 'Побыстрее'
   return slot ? slot.label : ''
 }
