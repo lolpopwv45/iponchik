@@ -1,9 +1,16 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import L from 'leaflet'
+import { useEffect, useRef, useState } from 'react'
+import type { Map as LeafletMap, Marker as LeafletMarker, Polygon as LeafletPolygon } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { DELIVERY_ZONE_POLYGON, RESTAURANT_LOCATION, type LatLng } from '@/lib/geo'
+
+type LeafletLib = typeof import('leaflet')
+
+async function loadLeaflet(): Promise<LeafletLib> {
+  const leafletModule = await import('leaflet')
+  return leafletModule.default ?? leafletModule
+}
 
 type ZoneStatus = 'idle' | 'checking' | 'inside' | 'outside' | 'incomplete'
 
@@ -14,7 +21,7 @@ interface DeliveryZoneMapProps {
   onPick?: (point: LatLng) => void
 }
 
-function markerIcon(bg: string, emoji: string) {
+function markerIcon(L: LeafletLib, bg: string, emoji: string) {
   return L.divIcon({
     className: 'delivery-map-pin',
     html: `<span style="
@@ -38,59 +45,73 @@ const ZONE_COLORS = {
 
 export function DeliveryZoneMap({ customer, status, visible = true, onPick }: DeliveryZoneMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<L.Map | null>(null)
-  const polygonRef = useRef<L.Polygon | null>(null)
-  const customerMarkerRef = useRef<L.Marker | null>(null)
+  const mapRef = useRef<LeafletMap | null>(null)
+  const polygonRef = useRef<LeafletPolygon | null>(null)
+  const customerMarkerRef = useRef<LeafletMarker | null>(null)
+  const leafletRef = useRef<LeafletLib | null>(null)
   const onPickRef = useRef(onPick)
+  const [mapReady, setMapReady] = useState(0)
   onPickRef.current = onPick
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return
+    if (!containerRef.current) return
 
-    const map = L.map(containerRef.current, {
-      zoomControl: false,
-      attributionControl: false,
-      scrollWheelZoom: true,
-    })
+    let cancelled = false
+    let resize: number | undefined
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-    }).addTo(map)
+    void (async () => {
+      const L = await loadLeaflet()
+      if (cancelled || !containerRef.current || mapRef.current) return
 
-    L.control.zoom({ position: 'topright' }).addTo(map)
+      leafletRef.current = L
 
-    const polygon = L.polygon(
-      DELIVERY_ZONE_POLYGON.map((point) => [point.lat, point.lng] as L.LatLngExpression),
-      {
-        color: ZONE_COLORS.idle.color,
-        fillColor: ZONE_COLORS.idle.fill,
-        fillOpacity: 0.22,
-        weight: 2,
+      const map = L.map(containerRef.current, {
+        zoomControl: false,
+        attributionControl: false,
+        scrollWheelZoom: true,
+      })
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+      }).addTo(map)
+
+      L.control.zoom({ position: 'topright' }).addTo(map)
+
+      const polygon = L.polygon(
+        DELIVERY_ZONE_POLYGON.map((point) => [point.lat, point.lng] as [number, number]),
+        {
+          color: ZONE_COLORS.idle.color,
+          fillColor: ZONE_COLORS.idle.fill,
+          fillOpacity: 0.22,
+          weight: 2,
+          interactive: false,
+        },
+      ).addTo(map)
+
+      L.marker([RESTAURANT_LOCATION.lat, RESTAURANT_LOCATION.lng], {
+        icon: markerIcon(L, '#f97316', '🍩'),
         interactive: false,
-      },
-    ).addTo(map)
+      })
+        .addTo(map)
+        .bindTooltip('Я-пончик · Руставели, 24')
 
-    L.marker([RESTAURANT_LOCATION.lat, RESTAURANT_LOCATION.lng], {
-      icon: markerIcon('#f97316', '🍩'),
-      interactive: false,
-    })
-      .addTo(map)
-      .bindTooltip('Я-пончик · Руставели, 24')
+      map.fitBounds(polygon.getBounds(), { padding: [18, 18] })
 
-    map.fitBounds(polygon.getBounds(), { padding: [18, 18] })
+      map.on('click', (event) => {
+        onPickRef.current?.({ lat: event.latlng.lat, lng: event.latlng.lng })
+      })
 
-    map.on('click', (event) => {
-      onPickRef.current?.({ lat: event.latlng.lat, lng: event.latlng.lng })
-    })
+      mapRef.current = map
+      polygonRef.current = polygon
+      setMapReady((value) => value + 1)
 
-    mapRef.current = map
-    polygonRef.current = polygon
-
-    const resize = window.setTimeout(() => map.invalidateSize(), 250)
+      resize = window.setTimeout(() => map.invalidateSize(), 250)
+    })()
 
     return () => {
-      window.clearTimeout(resize)
-      map.remove()
+      cancelled = true
+      if (resize) window.clearTimeout(resize)
+      mapRef.current?.remove()
       mapRef.current = null
       polygonRef.current = null
       customerMarkerRef.current = null
@@ -98,9 +119,10 @@ export function DeliveryZoneMap({ customer, status, visible = true, onPick }: De
   }, [])
 
   useEffect(() => {
+    const L = leafletRef.current
     const map = mapRef.current
     const polygon = polygonRef.current
-    if (!map || !polygon) return
+    if (!L || !map || !polygon) return
 
     map.invalidateSize()
 
@@ -117,7 +139,7 @@ export function DeliveryZoneMap({ customer, status, visible = true, onPick }: De
 
     if (customer) {
       const marker = L.marker([customer.lat, customer.lng], {
-        icon: markerIcon(status === 'outside' ? '#dc2626' : '#059669', '📍'),
+        icon: markerIcon(L, status === 'outside' ? '#dc2626' : '#059669', '📍'),
         interactive: false,
       }).addTo(map)
       customerMarkerRef.current = marker
@@ -125,13 +147,13 @@ export function DeliveryZoneMap({ customer, status, visible = true, onPick }: De
       const latlng = L.latLng(customer.lat, customer.lng)
       if (!map.getBounds().contains(latlng)) {
         const bounds = L.latLngBounds(
-          DELIVERY_ZONE_POLYGON.map((point) => [point.lat, point.lng] as L.LatLngTuple),
+          DELIVERY_ZONE_POLYGON.map((point) => [point.lat, point.lng] as [number, number]),
         )
         bounds.extend(customer)
         map.flyToBounds(bounds, { padding: [28, 28], duration: 0.7, maxZoom: 14 })
       }
     }
-  }, [customer, status, visible])
+  }, [customer, mapReady, status, visible])
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border">

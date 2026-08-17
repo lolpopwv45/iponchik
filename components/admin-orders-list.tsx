@@ -74,11 +74,14 @@ export function AdminOrdersList({ mode = 'active' }: { mode?: 'active' | 'archiv
   const [error, setError] = useState('')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<OrdersTab>('kitchen')
-  const [now, setNow] = useState(() => Date.now())
+  // 0 on SSR + first client paint so archive split does not hydrate-mismatch.
+  const [now, setNow] = useState(0)
   const columnCount = useOrderColumnCount()
 
   useEffect(() => {
-    const timerId = window.setInterval(() => setNow(Date.now()), 1000)
+    const tick = () => setNow(Date.now())
+    tick()
+    const timerId = window.setInterval(tick, 1000)
     return () => window.clearInterval(timerId)
   }, [])
 
@@ -99,10 +102,21 @@ export function AdminOrdersList({ mode = 'active' }: { mode?: 'active' | 'archiv
       setLoading(false)
       return
     }
+
     void loadOrders()
-    return subscribeOrders(() => {
-      void loadOrders()
+
+    let refreshTimer: number | undefined
+    const unsubscribe = subscribeOrders(() => {
+      window.clearTimeout(refreshTimer)
+      refreshTimer = window.setTimeout(() => {
+        void loadOrders()
+      }, 250)
     })
+
+    return () => {
+      window.clearTimeout(refreshTimer)
+      unsubscribe()
+    }
   }, [loadOrders])
 
   async function handleStatusChange(order: Order, status: OrderStatus) {

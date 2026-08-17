@@ -386,7 +386,7 @@ export function subscribeOrders(onChange: () => void) {
   if (!supabase) return () => {}
 
   const channel = supabase
-    .channel('admin-orders')
+    .channel(`admin-orders-${crypto.randomUUID()}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, onChange)
     .subscribe()
 
