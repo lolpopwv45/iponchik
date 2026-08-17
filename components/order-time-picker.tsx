@@ -23,7 +23,7 @@ interface OrderTimePickerProps {
 
 const slotButtonClass = (active: boolean, enabled: boolean) =>
   cn(
-    'rounded-xl px-2 py-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-35',
+    'min-h-11 rounded-xl px-2 py-2 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-35',
     active && enabled
       ? 'bg-primary text-primary-foreground'
       : 'bg-secondary text-secondary-foreground hover:bg-secondary/70 disabled:hover:bg-secondary',
@@ -107,33 +107,31 @@ export function OrderTimePicker({
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              aria-pressed={mode === 'asap'}
-              onClick={() => onModeChange('asap')}
-              className={cn(slotButtonClass(mode === 'asap', true), 'min-w-0 flex-1 rounded-2xl py-2.5 text-sm')}
-            >
-              Побыстрее
-            </button>
-            <label htmlFor="pickup-time" className="sr-only">
-              Время самовывоза, 24 часа
-            </label>
-            <input
-              id="pickup-time"
-              type="text"
-              inputMode="numeric"
-              autoComplete="off"
-              placeholder="14:30"
-              maxLength={5}
-              value={pickupInput}
-              onChange={(event) => handlePickupInput(constrainPickupDraft(event.target.value))}
-              className={cn(
-                'h-[42px] w-[6.5rem] shrink-0 rounded-2xl border border-input bg-background px-3 text-center text-sm tabular-nums text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring',
-                mode === 'slot' && pickupInput && !pickupError && 'border-primary',
-              )}
-            />
-          </div>
+          <button
+            type="button"
+            aria-pressed={mode === 'asap'}
+            onClick={() => onModeChange('asap')}
+            className={cn(slotButtonClass(mode === 'asap', true), 'min-h-12 w-full rounded-2xl text-sm')}
+          >
+            Побыстрее
+          </button>
+          <label htmlFor="pickup-time" className="sr-only">
+            Время самовывоза, 24 часа
+          </label>
+          <input
+            id="pickup-time"
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="Или время, например 14:30"
+            maxLength={5}
+            value={pickupInput}
+            onChange={(event) => handlePickupInput(constrainPickupDraft(event.target.value))}
+            className={cn(
+              'field-input h-12 text-center tabular-nums',
+              mode === 'slot' && pickupInput && !pickupError && 'border-primary',
+            )}
+          />
           {pickupError ? (
             <p className="text-xs font-semibold leading-relaxed text-red-600">{pickupError}</p>
           ) : (

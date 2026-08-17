@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { useMemo, useState } from 'react'
 import { MapPin, Phone } from 'lucide-react'
 import { ActiveProductProvider, useActiveProduct } from '@/components/active-product-context'
-import { CartDrawer } from '@/components/cart-drawer'
+import { CartDrawer, MobileCartBar } from '@/components/cart-drawer'
 import type { CartItem } from '@/lib/cart'
 import { DeliveryInfo } from '@/components/DeliveryInfo'
 import { Header } from '@/components/header'
@@ -27,6 +27,7 @@ function Storefront() {
   const [activeCategory, setActiveCategory] = useState<Category>('Все')
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0)
+  const cartTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
   const filteredProducts = useMemo(() => {
     if (activeCategory === 'Все') return PRODUCTS
@@ -74,31 +75,35 @@ function Storefront() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <main
+      className={`min-h-screen bg-background text-foreground ${
+        cartCount > 0 ? 'max-sm:pb-[calc(5.75rem+env(safe-area-inset-bottom))]' : ''
+      }`}
+    >
       <Header cartCount={cartCount} onOpenCart={() => setCartOpen(true)} />
 
-      <section id="top" className="mx-auto max-w-6xl px-4 pb-12 pt-10 sm:px-6 sm:pt-16 lg:pt-20">
-        <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
-          <div className="flex flex-col items-start gap-6">
+      <section id="top" className="mx-auto max-w-6xl px-4 pb-8 pt-6 sm:px-6 sm:pb-12 sm:pt-16 lg:pt-20">
+        <div className="grid items-center gap-6 lg:grid-cols-2 lg:gap-16 sm:gap-10">
+          <div className="flex flex-col items-start gap-4 sm:gap-6">
             <span className="rounded-full bg-secondary px-4 py-1.5 text-sm font-bold text-secondary-foreground">
               Открыты каждый день с 8:00 до 22:00
             </span>
-            <h1 className="text-balance text-4xl font-extrabold leading-[1.1] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+            <h1 className="text-balance text-[1.75rem] font-extrabold leading-[1.15] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
               Свежие пончики и горячая пицца
             </h1>
-            <p className="max-w-md text-pretty text-lg leading-relaxed text-muted-foreground">
+            <p className="max-w-md text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
               Закажите онлайн и заберите готовый заказ без очереди — печём и жарим каждую партию
               свежей, к вашему приходу.
             </p>
             <a
               href="#menu"
-              className="rounded-full bg-primary px-8 py-3.5 text-base font-bold text-primary-foreground shadow-sm transition-shadow hover:shadow-md"
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-primary px-8 text-base font-bold text-primary-foreground shadow-sm transition-shadow hover:shadow-md sm:w-auto sm:py-3.5"
             >
               Смотреть меню
             </a>
           </div>
 
-          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl shadow-md">
+          <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl shadow-md sm:aspect-[4/3] sm:rounded-3xl">
             <Image
               src="/images/hero-donuts.png"
               alt="Свежие глазированные пончики и горячая пицца на деревянном столе"
@@ -111,36 +116,45 @@ function Storefront() {
         </div>
       </section>
 
-      <section id="menu" className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
-        <div className="mb-8 flex flex-col gap-2">
-          <h2 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+      <section id="menu" className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-16">
+        <div className="mb-5 flex flex-col gap-2 sm:mb-8">
+          <h2 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-4xl">
             Наше меню
           </h2>
-          <p className="text-muted-foreground">Выбирайте категорию и собирайте заказ</p>
+          <p className="text-sm text-muted-foreground sm:text-base">Выбирайте категорию и собирайте заказ</p>
         </div>
 
-        <div className="mb-8 flex flex-wrap gap-2" role="group" aria-label="Фильтр по категориям">
-          {CATEGORIES.map((category) => {
-            const isActive = category === activeCategory
-            return (
-              <button
-                key={category}
-                type="button"
-                onClick={() => setActiveCategory(category)}
-                aria-pressed={isActive}
-                className={`rounded-full px-5 py-2.5 text-sm font-bold transition-colors ${
-                  isActive
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/70'
-                }`}
-              >
-                {category}
-              </button>
-            )
-          })}
+        <div
+          className="sticky z-30 -mx-4 mb-5 border-b border-border bg-background/95 px-4 py-3 backdrop-blur-md sm:static sm:mx-0 sm:mb-8 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none"
+          style={{ top: 'var(--site-header-height, 4rem)' }}
+        >
+          <div
+            className="scrollbar-none flex gap-2 overflow-x-auto pb-0.5 sm:flex-wrap sm:overflow-visible"
+            role="group"
+            aria-label="Фильтр по категориям"
+          >
+            {CATEGORIES.map((category) => {
+              const isActive = category === activeCategory
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() => setActiveCategory(category)}
+                  aria-pressed={isActive}
+                  className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-bold transition-colors sm:px-5 ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'bg-secondary text-secondary-foreground hover:bg-secondary/70'
+                  }`}
+                >
+                  {category}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-6 lg:grid-cols-4">
           {filteredProducts.map((product) => (
             <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
           ))}
@@ -149,9 +163,9 @@ function Storefront() {
 
       <DeliveryInfo />
 
-      <section id="about" className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
-        <div className="rounded-3xl bg-secondary px-6 py-10 sm:px-12 sm:py-14">
-          <h2 className="mb-3 text-3xl font-extrabold tracking-tight text-secondary-foreground sm:text-4xl">
+      <section id="about" className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-16">
+        <div className="rounded-3xl bg-secondary px-5 py-8 sm:px-12 sm:py-14">
+          <h2 className="mb-3 text-2xl font-extrabold tracking-tight text-secondary-foreground sm:text-4xl">
             О нас
           </h2>
           <p className="max-w-2xl text-pretty text-base leading-relaxed text-secondary-foreground/80 sm:text-lg">
@@ -164,7 +178,7 @@ function Storefront() {
       </section>
 
       <footer id="contacts" className="border-t border-border bg-secondary/40">
-        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-8 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6 sm:py-10">
           <div className="flex items-center gap-2">
             <span aria-hidden="true" className="text-2xl leading-none">
               🍩
@@ -177,7 +191,10 @@ function Storefront() {
               <MapPin className="size-4 shrink-0" aria-hidden="true" />
               ул. Руставели, 24, Челябинск
             </span>
-            <a href="tel:+79084945053" className="flex items-center gap-2 hover:text-primary">
+            <a
+              href="tel:+79084945053"
+              className="flex min-h-11 items-center gap-2 hover:text-primary"
+            >
               <Phone className="size-4 shrink-0" aria-hidden="true" />
               +7 (908) 494-50-53
             </a>
@@ -188,6 +205,13 @@ function Storefront() {
           </p>
         </div>
       </footer>
+
+      <MobileCartBar
+        count={cartCount}
+        total={cartTotal}
+        visible={!cartOpen && !(isPinned && activeProduct)}
+        onOpen={() => setCartOpen(true)}
+      />
 
       <CartDrawer
         open={cartOpen}

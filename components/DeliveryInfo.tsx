@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { ChevronDown, Clock, CreditCard, Package, Truck, type LucideIcon } from 'lucide-react'
 import { CITY_DELIVERY } from '@/lib/deliveryZone'
 
@@ -30,14 +30,14 @@ export function DeliveryInfo() {
   return (
     <section
       id="delivery"
-      className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16"
+      className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-16"
       aria-labelledby={headingId}
     >
       <div className="mb-8 flex flex-col gap-2">
-        <h2
-          id={headingId}
-          className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl"
-        >
+          <h2
+            id={headingId}
+            className="text-2xl font-extrabold tracking-tight text-foreground sm:text-4xl"
+          >
           Доставка и оплата
         </h2>
         <p className="text-muted-foreground">Условия, самовывоз, оплата и предзаказ</p>
@@ -61,7 +61,7 @@ export function DeliveryInfo() {
                   aria-expanded={isOpen}
                   aria-controls={panelId}
                   onClick={() => toggle(section.id)}
-                  className="flex w-full items-center gap-3 px-4 py-4 text-left sm:px-5"
+                  className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left sm:px-5 sm:py-4"
                 >
                   <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary">
                     <section.icon className="size-5" aria-hidden="true" />
@@ -144,7 +144,7 @@ function InfoRow({
   tone = 'default',
 }: {
   label: string
-  children: string
+  children: ReactNode
   tone?: 'default' | 'promo'
 }) {
   const toneClass =

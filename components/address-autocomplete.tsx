@@ -94,41 +94,42 @@ export function AddressAutocomplete({
           className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           aria-hidden="true"
         />
-        <input
-          id={inputId}
-          type="text"
-          role="combobox"
-          aria-autocomplete="list"
-          aria-expanded={open}
-          aria-controls={listId}
-          autoComplete="off"
-          value={value}
-          onChange={(event) => {
-            onChange(event.target.value)
-            setOpen(true)
-          }}
-          onFocus={() => {
-            if (suggestions.length > 0) setOpen(true)
-          }}
-          onKeyDown={(event) => {
-            if (!open || suggestions.length === 0) return
-            if (event.key === 'ArrowDown') {
-              event.preventDefault()
-              setActiveIndex((index) => (index + 1) % suggestions.length)
-            }
-            if (event.key === 'ArrowUp') {
-              event.preventDefault()
-              setActiveIndex((index) => (index <= 0 ? suggestions.length - 1 : index - 1))
-            }
-            if (event.key === 'Enter' && activeIndex >= 0) {
-              event.preventDefault()
-              choose(suggestions[activeIndex])
-            }
-            if (event.key === 'Escape') setOpen(false)
-          }}
-          placeholder="Начните вводить улицу и дом"
-          className="w-full rounded-2xl border border-input bg-background py-2.5 pl-10 pr-10 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        />
+          <input
+            id={inputId}
+            type="text"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={open}
+            aria-controls={listId}
+            autoComplete="street-address"
+            enterKeyHint="search"
+            value={value}
+            onChange={(event) => {
+              onChange(event.target.value)
+              setOpen(true)
+            }}
+            onFocus={() => {
+              if (suggestions.length > 0) setOpen(true)
+            }}
+            onKeyDown={(event) => {
+              if (!open || suggestions.length === 0) return
+              if (event.key === 'ArrowDown') {
+                event.preventDefault()
+                setActiveIndex((index) => (index + 1) % suggestions.length)
+              }
+              if (event.key === 'ArrowUp') {
+                event.preventDefault()
+                setActiveIndex((index) => (index <= 0 ? suggestions.length - 1 : index - 1))
+              }
+              if (event.key === 'Enter' && activeIndex >= 0) {
+                event.preventDefault()
+                choose(suggestions[activeIndex])
+              }
+              if (event.key === 'Escape') setOpen(false)
+            }}
+            placeholder="Начните вводить улицу и дом"
+            className="field-input pl-10 pr-10"
+          />
         {loading && (
           <Loader2
             className="absolute right-3.5 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground"
@@ -150,7 +151,7 @@ export function AddressAutocomplete({
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => choose(suggestion)}
                 className={cn(
-                  'flex w-full px-3 py-2.5 text-left text-sm text-card-foreground hover:bg-secondary',
+                  'flex min-h-12 w-full px-3 py-3 text-left text-sm text-card-foreground hover:bg-secondary',
                   index === activeIndex && 'bg-secondary',
                 )}
               >

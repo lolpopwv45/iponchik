@@ -162,8 +162,56 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    scroll-padding-top: calc(var(--site-header-height, 4rem) + 0.5rem);
+  }
   body {
     @apply bg-background text-foreground;
+  }
+  button,
+  a,
+  [role='button'] {
+    touch-action: manipulation;
+  }
+}
+
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.field-input {
+  min-height: 3rem;
+  width: 100%;
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--input);
+  background: var(--background);
+  padding-block: 0.75rem;
+  padding-inline: 1rem;
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--foreground);
+}
+
+.field-input::placeholder {
+  color: var(--muted-foreground);
+}
+
+.field-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+@media (pointer: coarse) {
+  .leaflet-control-zoom a {
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    line-height: 2.5rem !important;
+    font-size: 1.25rem !important;
   }
 }
 

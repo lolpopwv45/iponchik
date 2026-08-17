@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useState } from 'react'
+import { type ReactNode, useId, useState } from 'react'
 import { Check, CheckCircle2, Loader2, ShoppingBag } from 'lucide-react'
 import { AddressAutocomplete } from '@/components/address-autocomplete'
 import { OrderTimePicker } from '@/components/order-time-picker'
@@ -55,9 +55,10 @@ export interface CheckoutFormProps {
   items: CartItem[]
   drawerOpen: boolean
   onPlaced: (result: { orderNumber: string; hint: string }) => void
+  children?: ReactNode
 }
 
-export function CheckoutForm({ items, drawerOpen, onPlaced }: CheckoutFormProps) {
+export function CheckoutForm({ items, drawerOpen, onPlaced, children }: CheckoutFormProps) {
   const [form, setForm] = useState<CheckoutFields>(EMPTY_FORM)
   const [fulfillment, setFulfillment] = useState<Fulfillment>('pickup')
   const [zoneStatus, setZoneStatus] = useState<ZoneStatus>('idle')
@@ -68,6 +69,7 @@ export function CheckoutForm({ items, drawerOpen, onPlaced }: CheckoutFormProps)
   const [timeMode, setTimeMode] = useState<TimeMode>('asap')
   const [timeSlot, setTimeSlot] = useState<TimeSlot | null>(null)
   const [pdnConsent, setPdnConsent] = useState(false)
+  const formId = useId()
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const isDelivery = fulfillment === 'delivery'
@@ -188,9 +190,11 @@ export function CheckoutForm({ items, drawerOpen, onPlaced }: CheckoutFormProps)
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto border-t border-border px-6 py-5">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+      {children}
       {isDelivery ? (
-        <div className="flex flex-col gap-2">
+        <div className="mb-4 flex flex-col gap-2">
           <div className="flex items-center justify-between text-sm">
             <span className="font-semibold text-muted-foreground">Товары</span>
             <span className="font-bold text-card-foreground">{subtotal} ₽</span>
@@ -212,7 +216,7 @@ export function CheckoutForm({ items, drawerOpen, onPlaced }: CheckoutFormProps)
           )}
         </div>
       ) : (
-        <div className="flex items-center justify-between">
+        <div className="mb-4 flex items-center justify-between">
           <span className="text-base font-semibold text-muted-foreground">Итого</span>
           <span className="text-2xl font-extrabold tracking-tight text-card-foreground">
             {pricing.payable} ₽
@@ -221,6 +225,7 @@ export function CheckoutForm({ items, drawerOpen, onPlaced }: CheckoutFormProps)
       )}
 
       <form
+        id={formId}
         onSubmit={(event) => {
           event.preventDefault()
           void submitOrder()
@@ -232,7 +237,7 @@ export function CheckoutForm({ items, drawerOpen, onPlaced }: CheckoutFormProps)
             type="button"
             onClick={() => handleFulfillmentChange('pickup')}
             aria-pressed={fulfillment === 'pickup'}
-            className={`rounded-2xl px-3 py-2.5 text-sm font-bold transition-colors ${
+            className={`min-h-12 rounded-2xl px-3 text-sm font-bold transition-colors ${
               fulfillment === 'pickup'
                 ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'bg-secondary text-secondary-foreground hover:bg-secondary/70'
@@ -244,7 +249,7 @@ export function CheckoutForm({ items, drawerOpen, onPlaced }: CheckoutFormProps)
             type="button"
             onClick={() => handleFulfillmentChange('delivery')}
             aria-pressed={fulfillment === 'delivery'}
-            className={`rounded-2xl px-3 py-2.5 text-sm font-bold transition-colors ${
+            className={`min-h-12 rounded-2xl px-3 text-sm font-bold transition-colors ${
               fulfillment === 'delivery'
                 ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'bg-secondary text-secondary-foreground hover:bg-secondary/70'
@@ -302,7 +307,8 @@ export function CheckoutForm({ items, drawerOpen, onPlaced }: CheckoutFormProps)
                       setForm((prev) => ({ ...prev, apartment: event.target.value }))
                     }
                     placeholder="12"
-                    className="rounded-2xl border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    autoComplete="address-line2"
+                    className="field-input px-3"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -319,7 +325,7 @@ export function CheckoutForm({ items, drawerOpen, onPlaced }: CheckoutFormProps)
                       setForm((prev) => ({ ...prev, entrance: event.target.value }))
                     }
                     placeholder="2"
-                    className="rounded-2xl border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="field-input px-3"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -335,7 +341,7 @@ export function CheckoutForm({ items, drawerOpen, onPlaced }: CheckoutFormProps)
                       setForm((prev) => ({ ...prev, intercom: event.target.value }))
                     }
                     placeholder="12K34"
-                    className="rounded-2xl border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="field-input px-3"
                   />
                 </div>
               </div>
@@ -351,10 +357,12 @@ export function CheckoutForm({ items, drawerOpen, onPlaced }: CheckoutFormProps)
             id="cart-name"
             type="text"
             required
+            autoComplete="name"
+            autoCapitalize="words"
             value={form.name}
             onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
             placeholder="Как вас зовут?"
-            className="rounded-2xl border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="field-input"
           />
         </div>
 
@@ -366,10 +374,12 @@ export function CheckoutForm({ items, drawerOpen, onPlaced }: CheckoutFormProps)
             id="cart-phone"
             type="tel"
             required
+            inputMode="tel"
+            autoComplete="tel"
             value={form.phone}
             onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
             placeholder="+7 (___) ___-__-__"
-            className="rounded-2xl border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="field-input"
           />
         </div>
 
@@ -385,11 +395,11 @@ export function CheckoutForm({ items, drawerOpen, onPlaced }: CheckoutFormProps)
             placeholder={
               fulfillment === 'pickup' ? 'Например: заберу в 18:30' : 'Этаж, комментарий курьеру'
             }
-            className="resize-none rounded-2xl border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="field-input min-h-[4.5rem] resize-none"
           />
         </div>
 
-        <label htmlFor="cart-pdn-consent" className="flex cursor-pointer items-start gap-2.5">
+        <label htmlFor="cart-pdn-consent" className="flex cursor-pointer items-start gap-3 py-1">
           <input
             id="cart-pdn-consent"
             type="checkbox"
@@ -401,7 +411,7 @@ export function CheckoutForm({ items, drawerOpen, onPlaced }: CheckoutFormProps)
           <span
             aria-hidden="true"
             className={cn(
-              'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ring',
+              'mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ring',
               pdnConsent
                 ? 'border-primary bg-primary text-primary-foreground'
                 : 'border-input bg-background',
@@ -431,11 +441,15 @@ export function CheckoutForm({ items, drawerOpen, onPlaced }: CheckoutFormProps)
             {submitError}
           </p>
         )}
+      </form>
+      </div>
 
+      <div className="shrink-0 border-t border-border bg-card px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
         <button
           type="submit"
+          form={formId}
           disabled={!isFormValid || submitting || checking}
-          className="mt-1 flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3.5 text-sm font-bold text-primary-foreground shadow-sm transition-shadow hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-bold text-primary-foreground shadow-sm transition-shadow hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitting && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
           {submitting
@@ -446,11 +460,10 @@ export function CheckoutForm({ items, drawerOpen, onPlaced }: CheckoutFormProps)
                 ? `Ещё ${pricing.remaining} ₽ до минимума`
                 : `Оформить заказ на ${pricing.payable} ₽`}
         </button>
-
-        <p className="text-center text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-2 text-center text-xs leading-relaxed text-muted-foreground">
           Оплата при получении заказа
         </p>
-      </form>
+      </div>
     </div>
   )
 }
@@ -465,7 +478,7 @@ export function OrderSuccessScreen({
   onClose: () => void
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center sm:px-8">
       <div className="flex size-16 items-center justify-center rounded-full bg-accent/15 text-accent">
         <ShoppingBag className="size-8" aria-hidden="true" />
       </div>
@@ -478,7 +491,7 @@ export function OrderSuccessScreen({
       <button
         type="button"
         onClick={onClose}
-        className="mt-2 rounded-full bg-primary px-8 py-3 text-sm font-bold text-primary-foreground shadow-sm transition-shadow hover:shadow-md"
+        className="mt-2 flex min-h-12 items-center justify-center rounded-full bg-primary px-8 text-sm font-bold text-primary-foreground shadow-sm transition-shadow hover:shadow-md"
       >
         Вернуться в меню
       </button>

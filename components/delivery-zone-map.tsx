@@ -68,7 +68,7 @@ export function DeliveryZoneMap({ customer, status, visible = true, onPick }: De
       const map = L.map(containerRef.current, {
         zoomControl: false,
         attributionControl: false,
-        scrollWheelZoom: true,
+        scrollWheelZoom: false,
       })
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -159,7 +159,7 @@ export function DeliveryZoneMap({ customer, status, visible = true, onPick }: De
     <div className="overflow-hidden rounded-2xl border border-border">
       <div
         ref={containerRef}
-        className="z-0 h-52 w-full cursor-crosshair [&_.leaflet-control-zoom]:border-0 [&_.leaflet-control-zoom-in]:rounded-t-lg [&_.leaflet-control-zoom-out]:rounded-b-lg [&_.leaflet-pane]:!z-0 [&_.leaflet-top]:!z-10"
+        className="z-0 h-48 w-full cursor-crosshair sm:h-52 [&_.leaflet-control-zoom]:border-0 [&_.leaflet-control-zoom-in]:rounded-t-lg [&_.leaflet-control-zoom-out]:rounded-b-lg [&_.leaflet-pane]:!z-0 [&_.leaflet-top]:!z-10"
       />
       <div className="flex flex-col gap-0.5 bg-secondary px-3 py-1.5 text-[11px] font-semibold text-muted-foreground">
         <div className="flex flex-wrap gap-x-3 gap-y-1">

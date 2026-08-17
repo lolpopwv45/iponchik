@@ -325,7 +325,7 @@ function OrderCard({
             disabled={updating}
             onChange={(event) => onStatusChange(order, event.target.value as OrderStatus)}
             className={cn(
-              'max-w-[11.5rem] rounded-lg border px-2 py-1 text-xs font-semibold outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 disabled:cursor-wait disabled:opacity-60',
+              'max-w-[11.5rem] min-h-11 rounded-lg border px-2 py-2 text-sm font-semibold outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 disabled:cursor-wait disabled:opacity-60',
               ORDER_STATUS_STYLES[order.status],
             )}
           >
