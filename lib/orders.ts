@@ -1,4 +1,11 @@
 import type { CartItem } from '@/lib/cart'
+import {
+  CHECKOUT_LIMITS,
+  normalizePhone,
+  sanitizeCheckoutFields,
+  sanitizePlainText,
+  validateCheckoutFields,
+} from '@/lib/checkout-validation'
 import type { ProductBadge } from '@/lib/products'
 import { BADGE_META } from '@/lib/products'
 import { getSupabase } from '@/lib/supabase'
@@ -249,21 +256,39 @@ interface OrderInsertRow {
 
 function toInsertRow(input: CreateOrderInput): OrderInsertRow {
   const isDelivery = input.fulfillment === 'delivery'
+  const fields = sanitizeCheckoutFields({
+    name: input.customerName,
+    phone: input.phone,
+    comment: input.comment,
+    address: input.address,
+    apartment: input.apartment,
+    entrance: input.entrance,
+    intercom: input.intercom,
+  })
+  const phone = normalizePhone(fields.phone)
+  const fieldErrors = validateCheckoutFields(fields, input.fulfillment)
+  if (!phone || Object.keys(fieldErrors).length > 0) {
+    throw new Error(Object.values(fieldErrors)[0] ?? 'Проверьте телефон, адрес и комментарий')
+  }
+
+  const items = cartItemsToOrderItems(input.items).slice(0, CHECKOUT_LIMITS.items)
+  if (items.length === 0) throw new Error('Корзина пуста')
+
   return {
     status: DEFAULT_ORDER_STATUS,
-    customer_name: input.customerName.trim(),
-    phone: input.phone.trim(),
-    comment: input.comment.trim() || null,
+    customer_name: fields.name,
+    phone,
+    comment: fields.comment || null,
     fulfillment: input.fulfillment,
-    address: isDelivery ? input.address.trim() : null,
-    apartment: isDelivery ? input.apartment.trim() : null,
-    entrance: isDelivery ? input.entrance.trim() : null,
-    intercom: isDelivery ? input.intercom.trim() : null,
+    address: isDelivery ? fields.address : null,
+    apartment: isDelivery ? fields.apartment : null,
+    entrance: isDelivery ? fields.entrance : null,
+    intercom: isDelivery ? fields.intercom : null,
     lat: isDelivery ? (input.coords?.lat ?? null) : null,
     lng: isDelivery ? (input.coords?.lng ?? null) : null,
     time_mode: input.timeMode,
-    time_label: input.timeLabel || null,
-    items: cartItemsToOrderItems(input.items),
+    time_label: sanitizePlainText(input.timeLabel, CHECKOUT_LIMITS.timeLabel) || null,
+    items,
     subtotal: input.subtotal,
     delivery_fee: input.deliveryFee,
     total: input.total,
@@ -323,41 +348,63 @@ export function mapOrderRow(row: Record<string, unknown>): Order {
 
 const SUPABASE_MISSING = 'Не заданы NEXT_PUBLIC_SUPABASE_URL и NEXT_PUBLIC_SUPABASE_ANON_KEY'
 
+function isMissingRpc(error: { code?: string; message?: string } | null) {
+  if (!error) return false
+  return (
+    error.code === 'PGRST202' ||
+    error.code === '42883' ||
+    /could not find the function/i.test(error.message ?? '') ||
+    /does not exist/i.test(error.message ?? '')
+  )
+}
+
 export async function createOrder(input: CreateOrderInput): Promise<{ orderNumber: string }> {
   const supabase = getSupabase()
   if (!supabase) throw new Error(SUPABASE_MISSING)
 
   const payload = toInsertRow(input)
 
-  const insert = (row: OrderInsertRow) =>
-    supabase.from('orders').insert(row).select('order_number').single()
+  const rpc = await supabase.rpc('place_storefront_order', {
+    p_customer_name: payload.customer_name,
+    p_phone: payload.phone,
+    p_comment: payload.comment,
+    p_fulfillment: payload.fulfillment,
+    p_address: payload.address,
+    p_apartment: payload.apartment,
+    p_entrance: payload.entrance,
+    p_intercom: payload.intercom,
+    p_lat: payload.lat,
+    p_lng: payload.lng,
+    p_time_mode: payload.time_mode,
+    p_time_label: payload.time_label,
+    p_items: payload.items,
+    p_subtotal: payload.subtotal,
+    p_delivery_fee: payload.delivery_fee,
+    p_total: payload.total,
+  })
 
-  let { data, error } = await insert(payload)
-
-  const needsGeneratedNumber =
-    Boolean(error) &&
-    (error?.code === '23502' ||
-      error?.code === '23514' ||
-      /order_number/i.test(error?.message ?? '') ||
-      /null value/i.test(error?.message ?? ''))
-
-  if (needsGeneratedNumber || error?.code === '23505') {
-    const retry = await insert({ ...payload, order_number: generateOrderNumber() })
-    data = retry.data
-    error = retry.error
+  if (!rpc.error && rpc.data) {
+    return { orderNumber: String(rpc.data) }
   }
+
+  if (rpc.error && !isMissingRpc(rpc.error)) {
+    throw new Error(rpc.error.message)
+  }
+
+  let orderNumber = generateOrderNumber()
+  let { error } = await supabase.from('orders').insert({ ...payload, order_number: orderNumber })
 
   if (error?.code === '23505') {
-    const retry = await insert({ ...payload, order_number: generateOrderNumber() })
-    data = retry.data
+    orderNumber = generateOrderNumber()
+    const retry = await supabase.from('orders').insert({ ...payload, order_number: orderNumber })
     error = retry.error
   }
 
-  if (error || !data?.order_number) {
-    throw new Error(error?.message ?? 'Не удалось оформить заказ')
+  if (error) {
+    throw new Error(error.message)
   }
 
-  return { orderNumber: String(data.order_number) }
+  return { orderNumber }
 }
 
 export async function fetchOrders(): Promise<Order[]> {

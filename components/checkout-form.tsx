@@ -20,6 +20,14 @@ import {
 import { createOrder, type Fulfillment } from '@/lib/orders'
 import type { LatLng } from '@/lib/geo'
 import { cn } from '@/lib/utils'
+import {
+  CHECKOUT_LIMITS,
+  formatPhoneInput,
+  isValidPhone,
+  sanitizeCheckoutFields,
+  validateCheckoutFields,
+  type CheckoutFieldErrors,
+} from '@/lib/checkout-validation'
 
 const DeliveryZoneMap = dynamic(
   () => import('@/components/delivery-zone-map').then((mod) => mod.DeliveryZoneMap),
@@ -69,6 +77,7 @@ export function CheckoutForm({ items, drawerOpen, onPlaced, children }: Checkout
   const [timeMode, setTimeMode] = useState<TimeMode>('asap')
   const [timeSlot, setTimeSlot] = useState<TimeSlot | null>(null)
   const [pdnConsent, setPdnConsent] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({})
   const formId = useId()
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
@@ -81,11 +90,15 @@ export function CheckoutForm({ items, drawerOpen, onPlaced, children }: Checkout
     form.entrance.trim().length > 0 &&
     form.intercom.trim().length > 0
   const isFormValid =
-    form.name.trim().length > 0 &&
-    form.phone.trim().length > 0 &&
+    form.name.trim().length >= 2 &&
+    isValidPhone(form.phone) &&
+    form.comment.length <= CHECKOUT_LIMITS.comment &&
     deliveryAllowed &&
     pricing.meetsMinimum &&
-    (!isDelivery || (form.address.trim().length > 0 && deliveryDetailsFilled)) &&
+    (!isDelivery ||
+      (form.address.trim().length >= 5 &&
+        form.address.length <= CHECKOUT_LIMITS.address &&
+        deliveryDetailsFilled)) &&
     (timeMode === 'asap' ||
       (timeSlot != null &&
         (isDelivery
@@ -109,13 +122,18 @@ export function CheckoutForm({ items, drawerOpen, onPlaced, children }: Checkout
   }
 
   function handleAddressChange(value: string) {
-    setForm((prev) => ({ ...prev, address: value }))
+    setForm((prev) => ({ ...prev, address: value.slice(0, CHECKOUT_LIMITS.address) }))
     setCoords(null)
     setZoneStatus('idle')
+    setFieldErrors((prev) => ({ ...prev, address: undefined }))
   }
 
   function handleAddressSelect(suggestion: AddressSuggestion) {
     setZoneStatus('checking')
+    setForm((prev) => ({
+      ...prev,
+      address: suggestion.value.slice(0, CHECKOUT_LIMITS.address),
+    }))
 
     window.setTimeout(() => {
       if (suggestion.lat == null || suggestion.lng == null) {
@@ -137,7 +155,10 @@ export function CheckoutForm({ items, drawerOpen, onPlaced, children }: Checkout
 
     try {
       const suggestion = await reverseGeocodePoint(point.lat, point.lng)
-      setForm((prev) => ({ ...prev, address: suggestion.value }))
+      setForm((prev) => ({
+        ...prev,
+        address: suggestion.value.slice(0, CHECKOUT_LIMITS.address),
+      }))
       const lat = suggestion.lat ?? point.lat
       const lng = suggestion.lng ?? point.lng
       setCoords({ lat, lng })
@@ -163,16 +184,26 @@ export function CheckoutForm({ items, drawerOpen, onPlaced, children }: Checkout
         ? 'Готовим примерно в течение часа. Заберите на Руставели, 24.'
         : `Будет готов к ${timeSlot?.label ?? ''}. Заберите на ул. Руставели, 24.`
 
+    const sanitized = sanitizeCheckoutFields(form)
+    const nextErrors = validateCheckoutFields(sanitized, fulfillment)
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors)
+      setSubmitError(Object.values(nextErrors)[0] ?? 'Проверьте данные заказа')
+      setSubmitting(false)
+      return
+    }
+    setFieldErrors({})
+
     try {
       const { orderNumber } = await createOrder({
-        customerName: form.name,
-        phone: form.phone,
-        comment: form.comment,
+        customerName: sanitized.name,
+        phone: sanitized.phone,
+        comment: sanitized.comment,
         fulfillment,
-        address: form.address,
-        apartment: form.apartment,
-        entrance: form.entrance,
-        intercom: form.intercom,
+        address: sanitized.address,
+        apartment: sanitized.apartment,
+        entrance: sanitized.entrance,
+        intercom: sanitized.intercom,
         coords,
         timeMode,
         timeLabel: formatOrderTime(timeMode, timeSlot, fulfillment),
@@ -280,10 +311,16 @@ export function CheckoutForm({ items, drawerOpen, onPlaced, children }: Checkout
             <AddressAutocomplete
               id="cart-address"
               value={form.address}
+              maxLength={CHECKOUT_LIMITS.address}
               onChange={handleAddressChange}
               onSelect={handleAddressSelect}
               onSearchingChange={setSearchingAddress}
             />
+            {fieldErrors.address ? (
+              <p className="text-xs font-semibold text-red-600" role="alert">
+                {fieldErrors.address}
+              </p>
+            ) : null}
             <ZoneFeedback checking={checking} status={zoneStatus} />
             <DeliveryZoneMap
               customer={coords}
@@ -302,9 +339,13 @@ export function CheckoutForm({ items, drawerOpen, onPlaced, children }: Checkout
                     type="text"
                     required
                     inputMode="numeric"
+                    maxLength={CHECKOUT_LIMITS.apartment}
                     value={form.apartment}
                     onChange={(event) =>
-                      setForm((prev) => ({ ...prev, apartment: event.target.value }))
+                      setForm((prev) => ({
+                        ...prev,
+                        apartment: event.target.value.slice(0, CHECKOUT_LIMITS.apartment),
+                      }))
                     }
                     placeholder="12"
                     autoComplete="address-line2"
@@ -320,9 +361,13 @@ export function CheckoutForm({ items, drawerOpen, onPlaced, children }: Checkout
                     type="text"
                     required
                     inputMode="numeric"
+                    maxLength={CHECKOUT_LIMITS.entrance}
                     value={form.entrance}
                     onChange={(event) =>
-                      setForm((prev) => ({ ...prev, entrance: event.target.value }))
+                      setForm((prev) => ({
+                        ...prev,
+                        entrance: event.target.value.slice(0, CHECKOUT_LIMITS.entrance),
+                      }))
                     }
                     placeholder="2"
                     className="field-input px-3"
@@ -336,9 +381,13 @@ export function CheckoutForm({ items, drawerOpen, onPlaced, children }: Checkout
                     id="cart-intercom"
                     type="text"
                     required
+                    maxLength={CHECKOUT_LIMITS.intercom}
                     value={form.intercom}
                     onChange={(event) =>
-                      setForm((prev) => ({ ...prev, intercom: event.target.value }))
+                      setForm((prev) => ({
+                        ...prev,
+                        intercom: event.target.value.slice(0, CHECKOUT_LIMITS.intercom),
+                      }))
                     }
                     placeholder="12K34"
                     className="field-input px-3"
@@ -359,11 +408,21 @@ export function CheckoutForm({ items, drawerOpen, onPlaced, children }: Checkout
             required
             autoComplete="name"
             autoCapitalize="words"
+            maxLength={CHECKOUT_LIMITS.name}
             value={form.name}
-            onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+            onChange={(event) => {
+              setForm((prev) => ({ ...prev, name: event.target.value.slice(0, CHECKOUT_LIMITS.name) }))
+              setFieldErrors((prev) => ({ ...prev, name: undefined }))
+            }}
             placeholder="Как вас зовут?"
+            aria-invalid={Boolean(fieldErrors.name)}
             className="field-input"
           />
+          {fieldErrors.name ? (
+            <p className="text-xs font-semibold text-red-600" role="alert">
+              {fieldErrors.name}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -376,11 +435,21 @@ export function CheckoutForm({ items, drawerOpen, onPlaced, children }: Checkout
             required
             inputMode="tel"
             autoComplete="tel"
+            maxLength={18}
             value={form.phone}
-            onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
+            onChange={(event) => {
+              setForm((prev) => ({ ...prev, phone: formatPhoneInput(event.target.value) }))
+              setFieldErrors((prev) => ({ ...prev, phone: undefined }))
+            }}
             placeholder="+7 (___) ___-__-__"
+            aria-invalid={Boolean(fieldErrors.phone)}
             className="field-input"
           />
+          {fieldErrors.phone ? (
+            <p className="text-xs font-semibold text-red-600" role="alert">
+              {fieldErrors.phone}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -390,13 +459,22 @@ export function CheckoutForm({ items, drawerOpen, onPlaced, children }: Checkout
           <textarea
             id="cart-comment"
             rows={2}
+            maxLength={CHECKOUT_LIMITS.comment}
             value={form.comment}
-            onChange={(event) => setForm((prev) => ({ ...prev, comment: event.target.value }))}
+            onChange={(event) =>
+              setForm((prev) => ({
+                ...prev,
+                comment: event.target.value.slice(0, CHECKOUT_LIMITS.comment),
+              }))
+            }
             placeholder={
               fulfillment === 'pickup' ? 'Например: заберу в 18:30' : 'Этаж, комментарий курьеру'
             }
             className="field-input min-h-[4.5rem] resize-none"
           />
+          <p className="text-right text-[11px] text-muted-foreground">
+            {form.comment.length}/{CHECKOUT_LIMITS.comment}
+          </p>
         </div>
 
         <label htmlFor="cart-pdn-consent" className="flex cursor-pointer items-start gap-3 py-1">

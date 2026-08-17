@@ -56,6 +56,17 @@ export function Header({ cartCount, onOpenCart }: HeaderProps) {
   }, [])
 
   useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 1024px)')
+
+    function onChange() {
+      if (desktop.matches) setMenuOpen(false)
+    }
+
+    desktop.addEventListener('change', onChange)
+    return () => desktop.removeEventListener('change', onChange)
+  }, [])
+
+  useEffect(() => {
     if (!menuOpen) return
 
     const previousOverflow = document.body.style.overflow
@@ -81,19 +92,49 @@ export function Header({ cartCount, onOpenCart }: HeaderProps) {
       ref={headerRef}
       className="sticky top-0 z-50 border-b border-border bg-background/90 pt-[env(safe-area-inset-top)] backdrop-blur-md"
     >
-      <div className="mx-auto grid max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-2.5 sm:px-6 sm:py-3">
+      <div className="mx-auto hidden max-w-6xl items-center gap-6 px-6 py-4 lg:flex">
+        <a href="#top" className="flex shrink-0 items-center gap-2">
+          <span aria-hidden="true" className="text-3xl leading-none">
+            🍩
+          </span>
+          <span className="text-xl font-extrabold tracking-tight text-foreground">Я-пончик</span>
+        </a>
+
+        <nav className="flex flex-1 items-center justify-center gap-6" aria-label="Основная навигация">
+          {NAV_LINKS.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="text-sm font-semibold text-muted-foreground transition-colors hover:text-primary"
+            >
+              {link.label}
+            </a>
+          ))}
+        </nav>
+
+        <a
+          href={PHONE_HREF}
+          className="shrink-0 text-sm font-bold tabular-nums tracking-tight text-foreground transition-colors hover:text-primary"
+        >
+          {PHONE_LABEL}
+        </a>
+
+        <CartButton cartCount={cartCount} cartBumpKey={cartBumpKey} onOpenCart={onOpenCart} />
+      </div>
+
+      <div className="mx-auto grid max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-2.5 lg:hidden">
         <a href="#top" className="flex min-w-0 items-center gap-2 justify-self-start">
           <span aria-hidden="true" className="text-3xl leading-none">
             🍩
           </span>
-          <span className="truncate text-lg font-extrabold tracking-tight text-foreground sm:text-xl">
+          <span className="truncate text-lg font-extrabold tracking-tight text-foreground">
             Я-пончик
           </span>
         </a>
 
         <a
           href={PHONE_HREF}
-          className="justify-self-center text-center text-sm font-bold tabular-nums tracking-tight text-foreground hover:text-primary sm:text-base"
+          className="justify-self-center text-center text-sm font-bold tabular-nums tracking-tight text-foreground hover:text-primary"
         >
           {PHONE_LABEL}
         </a>
@@ -115,7 +156,7 @@ export function Header({ cartCount, onOpenCart }: HeaderProps) {
 
       {menuOpen ? (
         <div
-          className="fixed inset-x-0 bottom-0 z-40"
+          className="fixed inset-x-0 bottom-0 z-40 lg:hidden"
           style={{ top: 'var(--site-header-height, 4rem)' }}
         >
           <button
@@ -126,7 +167,7 @@ export function Header({ cartCount, onOpenCart }: HeaderProps) {
           />
           <nav
             className="relative flex flex-col gap-1 border-b border-border bg-background px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-lg"
-            aria-label="Навигация"
+            aria-label="Мобильная навигация"
           >
             {NAV_LINKS.map((link) => (
               <a
@@ -164,5 +205,39 @@ export function Header({ cartCount, onOpenCart }: HeaderProps) {
         </div>
       ) : null}
     </header>
+  )
+}
+
+function CartButton({
+  cartCount,
+  cartBumpKey,
+  onOpenCart,
+}: {
+  cartCount: number
+  cartBumpKey: number
+  onOpenCart: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpenCart}
+      aria-haspopup="dialog"
+      className="relative flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-sm transition-shadow hover:shadow-md"
+    >
+      <ShoppingBag className="size-4" aria-hidden="true" />
+      Корзина
+      {cartCount > 0 && (
+        <span
+          key={cartBumpKey}
+          className={cn(
+            'absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-accent text-[11px] font-bold text-accent-foreground',
+            cartBumpKey > 0 && 'animate-cart-badge-pop',
+          )}
+          aria-label={`Товаров в корзине: ${cartCount}`}
+        >
+          {cartCount}
+        </span>
+      )}
+    </button>
   )
 }

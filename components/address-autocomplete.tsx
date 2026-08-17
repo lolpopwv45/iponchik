@@ -11,6 +11,7 @@ interface AddressAutocompleteProps {
   onChange: (value: string) => void
   onSelect: (suggestion: AddressSuggestion) => void
   onSearchingChange?: (searching: boolean) => void
+  maxLength?: number
 }
 
 export function AddressAutocomplete({
@@ -19,6 +20,7 @@ export function AddressAutocomplete({
   onChange,
   onSelect,
   onSearchingChange,
+  maxLength = 200,
 }: AddressAutocompleteProps) {
   const generatedId = useId()
   const inputId = id ?? generatedId
@@ -103,6 +105,7 @@ export function AddressAutocomplete({
             aria-controls={listId}
             autoComplete="street-address"
             enterKeyHint="search"
+            maxLength={maxLength}
             value={value}
             onChange={(event) => {
               onChange(event.target.value)

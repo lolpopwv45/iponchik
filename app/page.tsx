@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MapPin, Phone } from 'lucide-react'
 import { ActiveProductProvider, useActiveProduct } from '@/components/active-product-context'
 import { CartDrawer, MobileCartBar } from '@/components/cart-drawer'
@@ -10,7 +10,8 @@ import { DeliveryInfo } from '@/components/DeliveryInfo'
 import { Header } from '@/components/header'
 import { ProductCard } from '@/components/product-card'
 import { ProductDetailModal, toProductDetail } from '@/components/product-detail-modal'
-import { CATEGORIES, PRODUCTS, type Category, type Product } from '@/lib/products'
+import { useCatalog } from '@/components/use-catalog'
+import { ALL_CATEGORY, type Product } from '@/lib/products'
 
 export default function Page() {
   return (
@@ -22,19 +23,32 @@ export default function Page() {
 
 function Storefront() {
   const { activeProduct, isPinned, clearActiveProduct } = useActiveProduct()
+  const { categories, products, loading, error } = useCatalog()
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [cartOpen, setCartOpen] = useState(false)
-  const [activeCategory, setActiveCategory] = useState<Category>('Все')
+  const [activeCategoryId, setActiveCategoryId] = useState<number | 'all'>('all')
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0)
   const cartTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
+  const visibleCategories = useMemo(
+    () => categories.filter((category) => products.some((product) => product.categoryId === category.id)),
+    [categories, products],
+  )
+
   const filteredProducts = useMemo(() => {
-    if (activeCategory === 'Все') return PRODUCTS
-    return PRODUCTS.filter((product) => product.category === activeCategory)
-  }, [activeCategory])
+    if (activeCategoryId === 'all') return products
+    return products.filter((product) => product.categoryId === activeCategoryId)
+  }, [activeCategoryId, products])
+
+  useEffect(() => {
+    if (activeCategoryId !== 'all' && !visibleCategories.some((category) => category.id === activeCategoryId)) {
+      setActiveCategoryId('all')
+    }
+  }, [activeCategoryId, visibleCategories])
 
   function handleAddToCart(product: Product, quantity = 1) {
+    if (!product.inStock) return
     setCartItems((items) => {
       const existing = items.find((item) => item.id === product.id)
       if (existing) {
@@ -133,13 +147,25 @@ function Storefront() {
             role="group"
             aria-label="Фильтр по категориям"
           >
-            {CATEGORIES.map((category) => {
-              const isActive = category === activeCategory
+            <button
+              type="button"
+              onClick={() => setActiveCategoryId('all')}
+              aria-pressed={activeCategoryId === 'all'}
+              className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-bold transition-colors sm:px-5 ${
+                activeCategoryId === 'all'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/70'
+              }`}
+            >
+              {ALL_CATEGORY}
+            </button>
+            {visibleCategories.map((category) => {
+              const isActive = category.id === activeCategoryId
               return (
                 <button
-                  key={category}
+                  key={category.id}
                   type="button"
-                  onClick={() => setActiveCategory(category)}
+                  onClick={() => setActiveCategoryId(category.id)}
                   aria-pressed={isActive}
                   className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-bold transition-colors sm:px-5 ${
                     isActive
@@ -147,18 +173,43 @@ function Storefront() {
                       : 'bg-secondary text-secondary-foreground hover:bg-secondary/70'
                   }`}
                 >
-                  {category}
+                  {category.name}
                 </button>
               )
             })}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-6 lg:grid-cols-4">
-          {filteredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
-          ))}
-        </div>
+        {error ? (
+          <p className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700" role="alert">
+            {error}
+          </p>
+        ) : null}
+
+        {loading && products.length === 0 ? (
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-6 lg:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <div key={index} className="overflow-hidden rounded-2xl bg-card shadow-sm sm:rounded-3xl">
+                <div className="aspect-square animate-pulse bg-muted" />
+                <div className="space-y-2 p-3">
+                  <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+                  <div className="h-3 w-1/2 animate-pulse rounded bg-muted" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="rounded-3xl bg-secondary px-5 py-12 text-center">
+            <p className="text-lg font-extrabold text-secondary-foreground">В этой категории пока пусто</p>
+            <p className="mt-1 text-sm text-secondary-foreground/70">Выберите другой раздел или загляните позже</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-6 lg:grid-cols-4">
+            {filteredProducts.map((product) => (
+              <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
+            ))}
+          </div>
+        )}
       </section>
 
       <DeliveryInfo />

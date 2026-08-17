@@ -17,6 +17,7 @@ export interface ProductDetail {
   badges: ProductDetailBadge[]
   imageUrl: string
   nutrition: ProductNutrition
+  inStock: boolean
 }
 
 export interface ProductDetailModalProps {
@@ -50,6 +51,7 @@ export function toProductDetail(product: Product): ProductDetail {
     badges: product.badges,
     imageUrl: product.image,
     nutrition: product.nutrition,
+    inStock: product.inStock,
   }
 }
 
@@ -90,6 +92,7 @@ export function ProductDetailModal({
   const detail = product
 
   function handleAddToCart() {
+    if (!detail.inStock) return
     onAddToCart?.(detail, quantity)
     onClose()
   }
@@ -188,15 +191,22 @@ export function ProductDetailModal({
                     {product.price} ₽
                   </span>
 
-                  <QuantityStepper quantity={quantity} onChange={setQuantity} />
-
-                  <button
-                    type="button"
-                    onClick={handleAddToCart}
-                    className="h-11 min-w-0 flex-1 rounded-full bg-primary px-5 text-sm font-bold text-primary-foreground shadow-sm transition-shadow hover:shadow-md"
-                  >
-                    В корзину
-                  </button>
+                  {product.inStock ? (
+                    <>
+                      <QuantityStepper quantity={quantity} onChange={setQuantity} />
+                      <button
+                        type="button"
+                        onClick={handleAddToCart}
+                        className="h-11 min-w-0 flex-1 rounded-full bg-primary px-5 text-sm font-bold text-primary-foreground shadow-sm transition-shadow hover:shadow-md"
+                      >
+                        В корзину
+                      </button>
+                    </>
+                  ) : (
+                    <span className="flex h-11 flex-1 items-center justify-center rounded-full bg-muted text-sm font-bold text-muted-foreground">
+                      Нет в наличии
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -205,22 +215,30 @@ export function ProductDetailModal({
           <div className="flex items-center gap-3 border-t border-border bg-card px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:hidden">
             <div className="min-w-0">
               <p className="text-lg font-extrabold tabular-nums leading-none text-foreground">
-                {product.price * quantity} ₽
+                {product.inStock ? product.price * quantity : product.price} ₽
               </p>
-              {quantity > 1 ? (
+              {product.inStock && quantity > 1 ? (
                 <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">
                   {product.price} ₽ × {quantity}
                 </p>
               ) : null}
             </div>
-            <QuantityStepper quantity={quantity} onChange={setQuantity} />
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              className="h-12 min-w-0 flex-1 rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm"
-            >
-              В корзину
-            </button>
+            {product.inStock ? (
+              <>
+                <QuantityStepper quantity={quantity} onChange={setQuantity} />
+                <button
+                  type="button"
+                  onClick={handleAddToCart}
+                  className="h-12 min-w-0 flex-1 rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm"
+                >
+                  В корзину
+                </button>
+              </>
+            ) : (
+              <span className="flex h-12 flex-1 items-center justify-center rounded-full bg-muted text-sm font-bold text-muted-foreground">
+                Нет в наличии
+              </span>
+            )}
           </div>
         </div>
 
