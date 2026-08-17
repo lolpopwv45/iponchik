@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { MapPin, Phone } from 'lucide-react'
 import { ActiveProductProvider, useActiveProduct } from '@/components/active-product-context'
@@ -251,9 +252,12 @@ function Storefront() {
             </a>
           </div>
 
-          <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Я-пончик. Все права защищены.
-          </p>
+          <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:items-end">
+            <Link href="/privacy" className="hover:text-primary">
+              Политика конфиденциальности
+            </Link>
+            <p>© {new Date().getFullYear()} Я-пончик. Все права защищены.</p>
+          </div>
         </div>
       </footer>
 
