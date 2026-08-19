@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.gitignore
+*.md
+.env
+.env*.local
+.cursor
+tsconfig.tsbuildinfo
+Dockerfile
+docker-compose.yml
+Caddyfile
