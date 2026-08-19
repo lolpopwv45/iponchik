@@ -133,7 +133,7 @@ export function ProductDetailModal({
               <div className="relative isolate aspect-[16/10] overflow-hidden bg-muted sm:aspect-[4/3] md:aspect-auto md:h-full md:min-h-[28rem]">
                 <Image
                   src={product.imageUrl || '/placeholder.svg'}
-                  alt={product.title}
+                  alt={`${product.title} — ${product.description}`}
                   fill
                   className="object-cover object-center"
                   sizes="(min-width: 768px) 460px, 100vw"

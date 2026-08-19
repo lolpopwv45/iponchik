@@ -1,10 +1,26 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { JsonLd } from '@/components/json-ld'
+import { buildBreadcrumbJsonLd } from '@/lib/seo'
+import { SITE_NAME } from '@/lib/site'
 
 export const metadata: Metadata = {
-  title: 'Политика конфиденциальности — Я-пончик',
+  title: 'Политика конфиденциальности',
   description:
-    'Политика обработки персональных данных и использования файлов cookie пекарни «Я-пончик».',
+    'Политика обработки персональных данных и использования файлов cookie пекарни «Я-пончик» в Челябинске.',
+  alternates: {
+    canonical: '/privacy',
+  },
+  openGraph: {
+    title: `Политика конфиденциальности | ${SITE_NAME}`,
+    description:
+      'Политика обработки персональных данных и использования файлов cookie пекарни «Я-пончик».',
+    url: '/privacy',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 const SECTIONS = [
@@ -154,6 +170,12 @@ const SECTIONS = [
 export default function PrivacyPage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
+      <JsonLd
+        data={buildBreadcrumbJsonLd([
+          { name: SITE_NAME, path: '/' },
+          { name: 'Политика конфиденциальности', path: '/privacy' },
+        ])}
+      />
       <header className="border-b border-border bg-background/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2">

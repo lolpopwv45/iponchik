@@ -1,7 +1,8 @@
-import type { Metadata, Viewport } from 'next'
+import type { Viewport } from 'next'
 import { Nunito } from 'next/font/google'
 import { CookieConsent } from '@/components/cookie-consent'
 import { SiteAnalytics } from '@/components/site-analytics'
+import { buildRootMetadata } from '@/lib/site'
 import './globals.css'
 
 const _nunito = Nunito({
@@ -9,12 +10,7 @@ const _nunito = Nunito({
   variable: '--font-nunito',
 })
 
-export const metadata: Metadata = {
-  title: 'Я-пончик — Свежие пончики и горячая пицца',
-  description:
-    'Кулинария и пекарня «Я-пончик»: свежие пончики, горячая пицца, пирожки и десерты. Заказ онлайн без очереди.',
-  generator: 'v0.app',
-}
+export const metadata = buildRootMetadata()
 
 export const viewport: Viewport = {
   width: 'device-width',

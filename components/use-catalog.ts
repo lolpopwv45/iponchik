@@ -1,14 +1,16 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { Catalog } from '@/lib/catalog'
 import type { MenuCategory, Product } from '@/lib/products'
 
-export function useCatalog() {
-  const [categories, setCategories] = useState<MenuCategory[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
+export function useCatalog(initial?: Catalog) {
+  const hasInitial = initial !== undefined
+  const [categories, setCategories] = useState<MenuCategory[]>(initial?.categories ?? [])
+  const [products, setProducts] = useState<Product[]>(initial?.products ?? [])
+  const [loading, setLoading] = useState(!hasInitial)
   const [error, setError] = useState('')
-  const loadedOnce = useRef(false)
+  const loadedOnce = useRef(hasInitial)
 
   const loadCatalog = useCallback(async () => {
     try {

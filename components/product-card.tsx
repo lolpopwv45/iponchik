@@ -55,7 +55,7 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
       <div className="relative aspect-square w-full overflow-hidden">
         <Image
           src={product.image}
-          alt={product.name}
+          alt={`${product.name} — ${product.description || product.category}`}
           fill
           className={cn(
             'object-cover transition-transform duration-300 group-hover:scale-105',

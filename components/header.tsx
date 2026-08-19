@@ -3,6 +3,7 @@
 import { Menu, ShoppingBag, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { SITE_NAME, SITE_PHONE_HREF, SITE_PHONE_LABEL } from '@/lib/site'
 
 interface HeaderProps {
   cartCount: number
@@ -10,14 +11,11 @@ interface HeaderProps {
 }
 
 const NAV_LINKS = [
-  { href: '#menu', label: 'Меню' },
-  { href: '#delivery', label: 'Доставка' },
-  { href: '#about', label: 'О нас' },
-  { href: '#contacts', label: 'Контакты' },
+  { href: '/#menu', label: 'Меню' },
+  { href: '/#delivery', label: 'Доставка' },
+  { href: '/#about', label: 'О нас' },
+  { href: '/#contacts', label: 'Контакты' },
 ] as const
-
-const PHONE_HREF = 'tel:+79084945053'
-const PHONE_LABEL = '+7 (908) 494-50-53'
 
 export function Header({ cartCount, onOpenCart }: HeaderProps) {
   const headerRef = useRef<HTMLElement>(null)
@@ -93,11 +91,11 @@ export function Header({ cartCount, onOpenCart }: HeaderProps) {
       className="sticky top-0 z-50 border-b border-border bg-background/90 pt-[env(safe-area-inset-top)] backdrop-blur-md"
     >
       <div className="mx-auto hidden max-w-6xl items-center gap-6 px-6 py-4 lg:flex">
-        <a href="#top" className="flex shrink-0 items-center gap-2">
+        <a href="/" className="flex shrink-0 items-center gap-2">
           <span aria-hidden="true" className="text-3xl leading-none">
             🍩
           </span>
-          <span className="text-xl font-extrabold tracking-tight text-foreground">Я-пончик</span>
+          <span className="text-xl font-extrabold tracking-tight text-foreground">{SITE_NAME}</span>
         </a>
 
         <nav className="flex flex-1 items-center justify-center gap-6" aria-label="Основная навигация">
@@ -113,30 +111,30 @@ export function Header({ cartCount, onOpenCart }: HeaderProps) {
         </nav>
 
         <a
-          href={PHONE_HREF}
+          href={SITE_PHONE_HREF}
           className="shrink-0 text-sm font-bold tabular-nums tracking-tight text-foreground transition-colors hover:text-primary"
         >
-          {PHONE_LABEL}
+          {SITE_PHONE_LABEL}
         </a>
 
         <CartButton cartCount={cartCount} cartBumpKey={cartBumpKey} onOpenCart={onOpenCart} />
       </div>
 
       <div className="mx-auto grid max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-2.5 lg:hidden">
-        <a href="#top" className="flex min-w-0 items-center gap-2 justify-self-start">
+        <a href="/" className="flex min-w-0 items-center gap-2 justify-self-start">
           <span aria-hidden="true" className="text-3xl leading-none">
             🍩
           </span>
           <span className="truncate text-lg font-extrabold tracking-tight text-foreground">
-            Я-пончик
+            {SITE_NAME}
           </span>
         </a>
 
         <a
-          href={PHONE_HREF}
+          href={SITE_PHONE_HREF}
           className="justify-self-center text-center text-sm font-bold tabular-nums tracking-tight text-foreground hover:text-primary"
         >
-          {PHONE_LABEL}
+          {SITE_PHONE_LABEL}
         </a>
 
         <button
