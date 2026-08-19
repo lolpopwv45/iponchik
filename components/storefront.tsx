@@ -1,16 +1,17 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { MapPin, Phone } from 'lucide-react'
 import { ActiveProductProvider, useActiveProduct } from '@/components/active-product-context'
-import { CartDrawer, MobileCartBar } from '@/components/cart-drawer'
+import { MobileCartBar } from '@/components/mobile-cart-bar'
 import type { CartItem } from '@/lib/cart'
 import { DeliveryInfo } from '@/components/DeliveryInfo'
 import { Header } from '@/components/header'
 import { ProductCard } from '@/components/product-card'
-import { ProductDetailModal, toProductDetail } from '@/components/product-detail-modal'
+import type { ProductDetail } from '@/components/product-detail-modal'
 import { useCatalog } from '@/components/use-catalog'
 import type { Catalog } from '@/lib/catalog'
 import { ALL_CATEGORY, type Product } from '@/lib/products'
@@ -23,6 +24,29 @@ import {
   SITE_PHONE_LABEL,
   YANDEX_MAPS_URL,
 } from '@/lib/site'
+
+const CartDrawer = dynamic(
+  () => import('@/components/cart-drawer').then((mod) => mod.CartDrawer),
+  { ssr: false },
+)
+
+const ProductDetailModal = dynamic(
+  () => import('@/components/product-detail-modal').then((mod) => mod.ProductDetailModal),
+  { ssr: false },
+)
+
+function toProductDetail(product: Product): ProductDetail {
+  return {
+    title: product.name,
+    price: product.price,
+    weight: product.weight,
+    description: product.description,
+    badges: product.badges,
+    imageUrl: product.image,
+    nutrition: product.nutrition,
+    inStock: product.inStock,
+  }
+}
 
 export function Storefront({ initialCatalog }: { initialCatalog: Catalog }) {
   return (
@@ -37,6 +61,8 @@ function StorefrontView({ initialCatalog }: { initialCatalog: Catalog }) {
   const { categories, products, loading, error } = useCatalog(initialCatalog)
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [cartOpen, setCartOpen] = useState(false)
+  const [cartReady, setCartReady] = useState(false)
+  const [detailReady, setDetailReady] = useState(false)
   const [activeCategoryId, setActiveCategoryId] = useState<number | 'all'>('all')
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0)
@@ -57,6 +83,23 @@ function StorefrontView({ initialCatalog }: { initialCatalog: Catalog }) {
       setActiveCategoryId('all')
     }
   }, [activeCategoryId, visibleCategories])
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      void import('@/components/cart-drawer')
+      void import('@/components/product-detail-modal')
+    }, 2500)
+    return () => window.clearTimeout(timerId)
+  }, [])
+
+  useEffect(() => {
+    if (isPinned && activeProduct) setDetailReady(true)
+  }, [isPinned, activeProduct])
+
+  function openCart() {
+    setCartReady(true)
+    setCartOpen(true)
+  }
 
   function handleAddToCart(product: Product, quantity = 1) {
     if (!product.inStock) return
@@ -105,7 +148,7 @@ function StorefrontView({ initialCatalog }: { initialCatalog: Catalog }) {
         cartCount > 0 ? 'max-sm:pb-[calc(5.75rem+env(safe-area-inset-bottom))]' : ''
       }`}
     >
-      <Header cartCount={cartCount} onOpenCart={() => setCartOpen(true)} />
+      <Header cartCount={cartCount} onOpenCart={openCart} />
 
       <section id="top" className="mx-auto max-w-6xl px-4 pb-8 pt-6 sm:px-6 sm:pb-12 sm:pt-16 lg:pt-20">
         <div className="grid items-center gap-6 lg:grid-cols-2 lg:gap-16 sm:gap-10">
@@ -130,10 +173,11 @@ function StorefrontView({ initialCatalog }: { initialCatalog: Catalog }) {
 
           <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl shadow-md sm:aspect-[4/3] sm:rounded-3xl">
             <Image
-              src="/images/hero-donuts.png"
+              src="/images/hero-donuts.webp"
               alt="Свежие глазированные пончики и горячая пицца на деревянном столе в пекарне Я-пончик, Челябинск"
               fill
               priority
+              quality={75}
               className="object-cover"
               sizes="(min-width: 1024px) 560px, 100vw"
             />
@@ -301,28 +345,32 @@ function StorefrontView({ initialCatalog }: { initialCatalog: Catalog }) {
         count={cartCount}
         total={cartTotal}
         visible={!cartOpen && !(isPinned && activeProduct)}
-        onOpen={() => setCartOpen(true)}
+        onOpen={openCart}
       />
 
-      <CartDrawer
-        open={cartOpen}
-        onClose={() => setCartOpen(false)}
-        items={cartItems}
-        onIncrement={handleIncrement}
-        onDecrement={handleDecrement}
-        onRemove={handleRemove}
-        onClear={() => setCartItems([])}
-      />
+      {cartReady ? (
+        <CartDrawer
+          open={cartOpen}
+          onClose={() => setCartOpen(false)}
+          items={cartItems}
+          onIncrement={handleIncrement}
+          onDecrement={handleDecrement}
+          onRemove={handleRemove}
+          onClear={() => setCartItems([])}
+        />
+      ) : null}
 
-      <ProductDetailModal
-        product={isPinned && activeProduct ? toProductDetail(activeProduct) : null}
-        open={Boolean(isPinned && activeProduct)}
-        onClose={clearActiveProduct}
-        onAddToCart={(_detail, quantity) => {
-          if (!activeProduct) return
-          handleAddToCart(activeProduct, quantity)
-        }}
-      />
+      {detailReady || (isPinned && activeProduct) ? (
+        <ProductDetailModal
+          product={isPinned && activeProduct ? toProductDetail(activeProduct) : null}
+          open={Boolean(isPinned && activeProduct)}
+          onClose={clearActiveProduct}
+          onAddToCart={(_detail, quantity) => {
+            if (!activeProduct) return
+            handleAddToCart(activeProduct, quantity)
+          }}
+        />
+      ) : null}
     </main>
   )
 }

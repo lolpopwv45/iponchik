@@ -14,7 +14,7 @@ export function useCatalog(initial?: Catalog) {
 
   const loadCatalog = useCallback(async () => {
     try {
-      const response = await fetch('/api/catalog', { cache: 'no-store' })
+      const response = await fetch('/api/catalog')
       const payload = (await response.json()) as {
         categories?: MenuCategory[]
         products?: Product[]
@@ -37,12 +37,22 @@ export function useCatalog(initial?: Catalog) {
   }, [])
 
   useEffect(() => {
-    void loadCatalog()
+    if (!hasInitial) void loadCatalog()
+
     const timerId = window.setInterval(() => {
-      void loadCatalog()
+      if (document.visibilityState === 'visible') void loadCatalog()
     }, 60_000)
-    return () => window.clearInterval(timerId)
-  }, [loadCatalog])
+
+    function onVisible() {
+      if (document.visibilityState === 'visible') void loadCatalog()
+    }
+
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.clearInterval(timerId)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [hasInitial, loadCatalog])
 
   return { categories, products, loading, error }
 }

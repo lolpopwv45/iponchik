@@ -1,4 +1,11 @@
 iponchik.ru, www.iponchik.ru, iponchik.online, www.iponchik.online {
-	encode gzip
+	encode gzip zstd
+
+	@immutable path /_next/static/* /images/*
+	handle @immutable {
+		header Cache-Control "public, max-age=31536000, immutable"
+		reverse_proxy app:3000
+	}
+
 	reverse_proxy app:3000
 }

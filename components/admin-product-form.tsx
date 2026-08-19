@@ -9,6 +9,7 @@ import {
   type ProductInput,
   validateProductImage,
 } from '@/lib/catalog'
+import { compressProductImage } from '@/lib/compress-image'
 import { BADGE_META, PRODUCT_BADGES, type MenuCategory, type Product, type ProductBadge } from '@/lib/products'
 import { cn } from '@/lib/utils'
 
@@ -141,7 +142,7 @@ export function AdminProductForm({
     setForm((current) => ({ ...current, [key]: value }))
   }
 
-  function handleFiles(list: FileList | null) {
+  async function handleFiles(list: FileList | null) {
     const next = list?.[0]
     if (!next) return
     try {
@@ -156,7 +157,8 @@ export function AdminProductForm({
       if (next.size > MAX_PRODUCT_IMAGE_BYTES) {
         throw new Error('Фото не должно быть больше 5 МБ')
       }
-      setFile(next)
+      const compressed = await compressProductImage(next)
+      setFile(compressed)
       setFileError('')
     } catch (error) {
       setFileError(error instanceof Error ? error.message : 'Не удалось выбрать фото')

@@ -50,7 +50,7 @@ export const SITE_HOURS = {
   label: 'ежедневно с 8:00 до 22:00',
 } as const
 
-export const SITE_OG_IMAGE = '/images/hero-donuts.png'
+export const SITE_OG_IMAGE = '/images/og.jpg'
 export const SITE_OG_IMAGE_ALT =
   'Свежие пончики и горячая пицца пекарни «Я-пончик» в Челябинске'
 
@@ -130,8 +130,8 @@ export function buildRootMetadata(): Metadata {
       images: [
         {
           url: SITE_OG_IMAGE,
-          width: 1024,
-          height: 1024,
+          width: 1200,
+          height: 630,
           alt: SITE_OG_IMAGE_ALT,
         },
       ],

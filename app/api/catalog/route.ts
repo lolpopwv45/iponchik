@@ -1,21 +1,15 @@
 import { NextResponse } from 'next/server'
-import { fallbackCatalog, fetchCatalog } from '@/lib/catalog'
-import { withProxiedProductImages } from '@/lib/media-proxy'
-import { isSupabaseConfigured } from '@/lib/supabase'
+import { getRawCatalog } from '@/lib/public-catalog'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 60
 
 export async function GET() {
   try {
-    if (!isSupabaseConfigured()) {
-      const local = fallbackCatalog()
-      return NextResponse.json(local)
-    }
-
-    const catalog = await fetchCatalog()
-    return NextResponse.json({
-      categories: catalog.categories,
-      products: withProxiedProductImages(catalog.products),
+    const catalog = await getRawCatalog()
+    return NextResponse.json(catalog, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+      },
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Не удалось загрузить меню'

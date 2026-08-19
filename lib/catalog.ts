@@ -346,7 +346,7 @@ export async function uploadProductImage(file: File) {
   const supabase = requireSupabase()
   const path = `products/${crypto.randomUUID()}.${extensionFor(file)}`
   const { error } = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).upload(path, file, {
-    cacheControl: '3600',
+    cacheControl: '31536000',
     upsert: false,
     contentType: file.type || 'image/jpeg',
   })

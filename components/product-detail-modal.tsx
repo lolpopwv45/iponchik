@@ -135,6 +135,7 @@ export function ProductDetailModal({
                   src={product.imageUrl || '/placeholder.svg'}
                   alt={`${product.title} — ${product.description}`}
                   fill
+                  quality={70}
                   className="object-cover object-center"
                   sizes="(min-width: 768px) 460px, 100vw"
                 />

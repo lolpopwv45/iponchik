@@ -8,6 +8,7 @@ import './globals.css'
 const _nunito = Nunito({
   subsets: ['latin', 'cyrillic'],
   variable: '--font-nunito',
+  display: 'swap',
 })
 
 export const metadata = buildRootMetadata()
