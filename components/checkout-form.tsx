@@ -17,7 +17,7 @@ import {
   type TimeMode,
   type TimeSlot,
 } from '@/lib/order-time'
-import { createOrder, type Fulfillment } from '@/lib/orders'
+import type { Fulfillment } from '@/lib/orders'
 import type { LatLng } from '@/lib/geo'
 import { cn } from '@/lib/utils'
 import {
@@ -195,24 +195,32 @@ export function CheckoutForm({ items, drawerOpen, onPlaced, children }: Checkout
     setFieldErrors({})
 
     try {
-      const { orderNumber } = await createOrder({
-        customerName: sanitized.name,
-        phone: sanitized.phone,
-        comment: sanitized.comment,
-        fulfillment,
-        address: sanitized.address,
-        apartment: sanitized.apartment,
-        entrance: sanitized.entrance,
-        intercom: sanitized.intercom,
-        coords,
-        timeMode,
-        timeLabel: formatOrderTime(timeMode, timeSlot, fulfillment),
-        items,
-        subtotal,
-        deliveryFee: pricing.fee,
-        total: pricing.payable,
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: sanitized.name,
+          phone: sanitized.phone,
+          comment: sanitized.comment,
+          fulfillment,
+          address: sanitized.address,
+          apartment: sanitized.apartment,
+          entrance: sanitized.entrance,
+          intercom: sanitized.intercom,
+          coords,
+          timeMode,
+          timeLabel: formatOrderTime(timeMode, timeSlot, fulfillment),
+          items,
+          subtotal,
+          deliveryFee: pricing.fee,
+          total: pricing.payable,
+        }),
       })
-      onPlaced({ orderNumber, hint })
+      const payload = (await response.json()) as { orderNumber?: string; error?: string }
+      if (!response.ok || !payload.orderNumber) {
+        throw new Error(payload.error || 'Не удалось оформить заказ. Попробуйте ещё раз.')
+      }
+      onPlaced({ orderNumber: payload.orderNumber, hint })
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Не удалось оформить заказ. Попробуйте ещё раз.')
     } finally {

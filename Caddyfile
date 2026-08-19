@@ -1,4 +1,4 @@
-{$SITE_DOMAIN} {
+iponchik.ru, www.iponchik.ru, iponchik.online, www.iponchik.online {
 	encode gzip
 	reverse_proxy app:3000
 }

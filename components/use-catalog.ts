@@ -1,34 +1,34 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { fallbackCatalog, fetchCatalog, subscribeCatalog } from '@/lib/catalog'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { MenuCategory, Product } from '@/lib/products'
-import { isSupabaseConfigured } from '@/lib/supabase'
 
 export function useCatalog() {
-  const configured = isSupabaseConfigured()
-  const fallback = fallbackCatalog()
-  const [categories, setCategories] = useState<MenuCategory[]>(configured ? [] : fallback.categories)
-  const [products, setProducts] = useState<Product[]>(configured ? [] : fallback.products)
-  const [loading, setLoading] = useState(configured)
+  const [categories, setCategories] = useState<MenuCategory[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const loadedOnce = useRef(false)
 
   const loadCatalog = useCallback(async () => {
-    if (!isSupabaseConfigured()) {
-      const local = fallbackCatalog()
-      setCategories(local.categories)
-      setProducts(local.products)
-      setLoading(false)
-      return
-    }
-
-    setError('')
     try {
-      const next = await fetchCatalog()
-      setCategories(next.categories)
-      setProducts(next.products)
+      const response = await fetch('/api/catalog', { cache: 'no-store' })
+      const payload = (await response.json()) as {
+        categories?: MenuCategory[]
+        products?: Product[]
+        error?: string
+      }
+      if (!response.ok) {
+        throw new Error(payload.error || 'Не удалось загрузить меню')
+      }
+      setCategories(payload.categories ?? [])
+      setProducts(payload.products ?? [])
+      setError('')
+      loadedOnce.current = true
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить меню')
+      if (!loadedOnce.current) {
+        setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить меню')
+      }
     } finally {
       setLoading(false)
     }
@@ -36,20 +36,10 @@ export function useCatalog() {
 
   useEffect(() => {
     void loadCatalog()
-    if (!isSupabaseConfigured()) return
-
-    let refreshTimer: number | undefined
-    const unsubscribe = subscribeCatalog(() => {
-      window.clearTimeout(refreshTimer)
-      refreshTimer = window.setTimeout(() => {
-        void loadCatalog()
-      }, 250)
-    })
-
-    return () => {
-      window.clearTimeout(refreshTimer)
-      unsubscribe()
-    }
+    const timerId = window.setInterval(() => {
+      void loadCatalog()
+    }, 60_000)
+    return () => window.clearInterval(timerId)
   }, [loadCatalog])
 
   return { categories, products, loading, error }
