@@ -17,7 +17,6 @@ import type { Catalog } from '@/lib/catalog'
 import { ALL_CATEGORY, type Product } from '@/lib/products'
 import {
   SITE_ADDRESS_LINE,
-  SITE_FAQS,
   SITE_HOURS,
   SITE_NAME,
   SITE_PHONE_HREF,
@@ -281,25 +280,6 @@ function StorefrontView({ initialCatalog }: { initialCatalog: Catalog }) {
             и кусочек пиццы готовится вручную из простых ингредиентов. Работаем {SITE_HOURS.label}:
             закажите онлайн и заберите горячий заказ на кассе без ожидания.
           </p>
-        </div>
-      </section>
-
-      <section id="faq" className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-16">
-        <div className="mb-6 flex flex-col gap-2 sm:mb-8">
-          <h2 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-            Частые вопросы
-          </h2>
-          <p className="text-sm text-muted-foreground sm:text-base">
-            Адрес, доставка по Челябинску и заказ без очереди
-          </p>
-        </div>
-        <div className="mx-auto flex max-w-2xl flex-col gap-3">
-          {SITE_FAQS.map((item) => (
-            <article key={item.question} className="rounded-3xl bg-card px-5 py-4 shadow-sm ring-1 ring-border/60 sm:px-6">
-              <h3 className="text-base font-extrabold tracking-tight text-card-foreground">{item.question}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.answer}</p>
-            </article>
-          ))}
         </div>
       </section>
 

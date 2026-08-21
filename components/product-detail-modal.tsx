@@ -135,7 +135,7 @@ export function ProductDetailModal({
                   src={product.imageUrl || '/placeholder.svg'}
                   alt={`${product.title} — ${product.description}`}
                   fill
-                  quality={70}
+                  quality={75}
                   className="object-cover object-center"
                   sizes="(min-width: 768px) 460px, 100vw"
                 />
@@ -171,7 +171,7 @@ export function ProductDetailModal({
               </div>
 
               <div className="flex flex-col px-5 pb-5 pt-4 sm:px-8 sm:py-8 md:min-h-[28rem]">
-                <div className="flex items-start gap-2">
+                <div className="relative flex items-start gap-2">
                   <h2
                     id={titleId}
                     className="text-xl font-extrabold leading-tight tracking-tight text-card-foreground sm:text-3xl"
@@ -307,7 +307,7 @@ function NutritionTooltip({ nutrition }: { nutrition: ProductNutrition }) {
   }, [open])
 
   return (
-    <div ref={rootRef} className="group/tooltip relative mt-1.5 shrink-0">
+    <div ref={rootRef} className="group/tooltip mt-1.5 shrink-0">
       <button
         type="button"
         aria-label="Пищевая ценность"
@@ -321,10 +321,10 @@ function NutritionTooltip({ nutrition }: { nutrition: ProductNutrition }) {
       <div
         role="tooltip"
         className={cn(
-          'absolute right-0 top-full z-30 mt-2 w-[min(calc(100vw-2.5rem),340px)] origin-top-right rounded-2xl bg-popover p-3.5 text-popover-foreground shadow-lg ring-1 ring-border transition-all duration-200',
+          'absolute left-0 top-full z-30 mt-2 w-full max-w-[340px] origin-top-left rounded-2xl bg-popover p-3.5 text-popover-foreground shadow-lg ring-1 ring-border transition-all duration-200',
           open
             ? 'visible scale-100 opacity-100'
-            : 'invisible scale-95 opacity-0 group-hover/tooltip:visible group-hover/tooltip:scale-100 group-hover/tooltip:opacity-100 group-focus-within/tooltip:visible group-focus-within/tooltip:scale-100 group-focus-within/tooltip:opacity-100',
+            : 'invisible pointer-events-none scale-95 opacity-0 group-hover/tooltip:visible group-hover/tooltip:pointer-events-auto group-hover/tooltip:scale-100 group-hover/tooltip:opacity-100 group-focus-within/tooltip:visible group-focus-within/tooltip:pointer-events-auto group-focus-within/tooltip:scale-100 group-focus-within/tooltip:opacity-100',
         )}
       >
         <p className="mb-3 text-[13px] font-medium text-muted-foreground">Пищевая ценность на 100 г.</p>

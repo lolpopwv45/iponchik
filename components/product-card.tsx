@@ -57,7 +57,7 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
           src={product.image}
           alt={`${product.name} — ${product.description || product.category}`}
           fill
-          quality={70}
+          quality={75}
           className={cn(
             'object-cover transition-transform duration-300 group-hover:scale-105',
             !product.inStock && 'grayscale-[0.35]',

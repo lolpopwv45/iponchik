@@ -120,26 +120,26 @@ export function Header({ cartCount, onOpenCart }: HeaderProps) {
         <CartButton cartCount={cartCount} cartBumpKey={cartBumpKey} onOpenCart={onOpenCart} />
       </div>
 
-      <div className="mx-auto grid max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-2.5 lg:hidden">
-        <a href="/" className="flex min-w-0 items-center gap-2 justify-self-start">
-          <span aria-hidden="true" className="text-3xl leading-none">
+      <div className="mx-auto flex max-w-6xl items-center gap-2 px-3 py-2.5 min-[400px]:px-4 lg:hidden">
+        <a href="/" className="flex min-w-0 flex-1 items-center gap-1.5 min-[400px]:gap-2">
+          <span aria-hidden="true" className="shrink-0 text-[1.75rem] leading-none min-[400px]:text-3xl">
             🍩
           </span>
-          <span className="truncate text-lg font-extrabold tracking-tight text-foreground">
+          <span className="truncate text-base font-extrabold tracking-tight text-foreground min-[400px]:text-lg">
             {SITE_NAME}
           </span>
         </a>
 
         <a
           href={SITE_PHONE_HREF}
-          className="justify-self-center text-center text-sm font-bold tabular-nums tracking-tight text-foreground hover:text-primary"
+          className="shrink-0 whitespace-nowrap text-[13px] font-bold tabular-nums tracking-tight text-foreground hover:text-primary min-[400px]:text-sm"
         >
           {SITE_PHONE_LABEL}
         </a>
 
         <button
           type="button"
-          className="flex size-11 items-center justify-center justify-self-end rounded-full text-foreground hover:bg-secondary"
+          className="-mr-1 flex size-11 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-secondary"
           onClick={() => setMenuOpen((open) => !open)}
           aria-expanded={menuOpen}
           aria-label={menuOpen ? 'Закрыть меню' : 'Открыть меню'}

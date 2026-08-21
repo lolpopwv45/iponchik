@@ -79,6 +79,14 @@ function joinedCategoryName(value: unknown) {
   return ''
 }
 
+function publicProductImage(url: string) {
+  const image = url.trim() || '/placeholder.svg'
+  if (image.startsWith('/images/') && image.endsWith('.png')) {
+    return `${image.slice(0, -4)}.webp`
+  }
+  return image
+}
+
 function mapProduct(row: Record<string, unknown>): Product {
   const categoryName = joinedCategoryName(row.category) || String(row.category_name ?? '')
   const weightGrams = Math.max(1, Math.round(asNumber(row.weight_grams, 1)))
@@ -92,7 +100,7 @@ function mapProduct(row: Record<string, unknown>): Product {
     weight: formatWeight(weightGrams),
     categoryId: asId(row.category_id),
     category: categoryName.trim() || 'Без категории',
-    image: String(row.image_url ?? '') || '/placeholder.svg',
+    image: publicProductImage(String(row.image_url ?? '')),
     badges: parseBadges(row.badges),
     nutrition: {
       proteins: asNumber(row.proteins),

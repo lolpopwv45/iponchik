@@ -1,10 +1,12 @@
 'use client'
 
 import { useId, useState, type ReactNode } from 'react'
-import { ChevronDown, Clock, CreditCard, Package, Truck, type LucideIcon } from 'lucide-react'
+import { ChevronDown, CircleHelp, Clock, CreditCard, Package, Truck, type LucideIcon } from 'lucide-react'
 import { CITY_DELIVERY } from '@/lib/deliveryZone'
+import { SITE_FAQS } from '@/lib/site'
 
-type SectionId = 'delivery' | 'pickup' | 'payment' | 'preorder'
+type InfoSectionId = 'delivery' | 'pickup' | 'payment' | 'preorder'
+type SectionId = InfoSectionId | `faq-${number}`
 
 type AccordionItem = {
   id: SectionId
@@ -12,11 +14,20 @@ type AccordionItem = {
   title: string
 }
 
-const SECTIONS: AccordionItem[] = [
+const INFO_SECTIONS: AccordionItem[] = [
   { id: 'delivery', icon: Truck, title: 'Доставка' },
   { id: 'pickup', icon: Package, title: 'Самовывоз' },
   { id: 'payment', icon: CreditCard, title: 'Оплата' },
   { id: 'preorder', icon: Clock, title: 'Предзаказ' },
+]
+
+const SECTIONS: AccordionItem[] = [
+  ...INFO_SECTIONS,
+  ...SITE_FAQS.map((item, index) => ({
+    id: `faq-${index}` as const,
+    icon: CircleHelp,
+    title: item.question,
+  })),
 ]
 
 export function DeliveryInfo() {
@@ -33,14 +44,16 @@ export function DeliveryInfo() {
       className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-16"
       aria-labelledby={headingId}
     >
-      <div className="mb-8 flex flex-col gap-2">
-          <h2
-            id={headingId}
-            className="text-2xl font-extrabold tracking-tight text-foreground sm:text-4xl"
-          >
-          Доставка и оплата
+      <div id="faq" className="mb-8 flex flex-col gap-2">
+        <h2
+          id={headingId}
+          className="text-2xl font-extrabold tracking-tight text-foreground sm:text-4xl"
+        >
+          Доставка, оплата и частые вопросы
         </h2>
-        <p className="text-muted-foreground">Условия, самовывоз, оплата и предзаказ</p>
+        <p className="text-muted-foreground">
+          Условия, самовывоз, оплата, предзаказ и ответы на частые вопросы
+        </p>
       </div>
 
       <div className="mx-auto flex max-w-2xl flex-col gap-3">
@@ -96,6 +109,13 @@ export function DeliveryInfo() {
 }
 
 function SectionBody({ id }: { id: SectionId }) {
+  if (id.startsWith('faq-')) {
+    const faq = SITE_FAQS[Number(id.slice(4))]
+    if (!faq) return null
+
+    return <p className="text-sm leading-relaxed text-muted-foreground">{faq.answer}</p>
+  }
+
   if (id === 'delivery') {
     return (
       <ul className="flex flex-col gap-3">
