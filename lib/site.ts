@@ -53,6 +53,9 @@ export const SITE_HOURS = {
 export const SITE_OG_IMAGE = '/images/og.jpg'
 export const SITE_OG_IMAGE_ALT =
   'Свежие пончики и горячая пицца пекарни «Я-пончик» в Челябинске'
+export const SITE_ICON = '/icon-192.png'
+export const SITE_ICON_512 = '/icon-512.png'
+export const SITE_APPLE_ICON = '/apple-icon.png'
 
 export const YANDEX_MAPS_URL = `https://yandex.ru/maps/?text=${encodeURIComponent(
   `${SITE_ADDRESS.city}, ${SITE_ADDRESS.street}`,
@@ -103,6 +106,13 @@ export function buildRootMetadata(): Metadata {
     creator: SITE_LEGAL_NAME,
     publisher: SITE_LEGAL_NAME,
     category: 'food',
+    icons: {
+      icon: [
+        { url: '/favicon.ico', sizes: '48x48' },
+        { url: SITE_ICON, type: 'image/png', sizes: '192x192' },
+      ],
+      apple: [{ url: SITE_APPLE_ICON, sizes: '180x180', type: 'image/png' }],
+    },
     alternates: {
       canonical: '/',
       languages: {

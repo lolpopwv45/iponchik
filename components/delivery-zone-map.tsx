@@ -35,6 +35,16 @@ function markerIcon(L: LeafletLib, bg: string, emoji: string) {
   })
 }
 
+function restaurantIcon(L: LeafletLib) {
+  return L.icon({
+    iconUrl: '/restaurant-pin.png',
+    iconSize: [42, 52],
+    iconAnchor: [21, 50],
+    tooltipAnchor: [0, -40],
+    className: 'delivery-restaurant-pin',
+  })
+}
+
 const ZONE_COLORS = {
   idle: { color: '#ea580c', fill: '#f97316' },
   checking: { color: '#ea580c', fill: '#f97316' },
@@ -89,7 +99,7 @@ export function DeliveryZoneMap({ customer, status, visible = true, onPick }: De
       ).addTo(map)
 
       L.marker([RESTAURANT_LOCATION.lat, RESTAURANT_LOCATION.lng], {
-        icon: markerIcon(L, '#f97316', '🍩'),
+        icon: restaurantIcon(L),
         interactive: false,
       })
         .addTo(map)

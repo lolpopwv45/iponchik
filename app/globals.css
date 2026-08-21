@@ -184,26 +184,28 @@
   display: none;
 }
 
-.field-input {
-  min-height: 3rem;
-  width: 100%;
-  border-radius: var(--radius-2xl);
-  border: 1px solid var(--input);
-  background: var(--background);
-  padding-block: 0.75rem;
-  padding-inline: 1rem;
-  font-size: 1rem;
-  line-height: 1.4;
-  color: var(--foreground);
-}
+@layer components {
+  .field-input {
+    min-height: 3rem;
+    width: 100%;
+    border-radius: var(--radius-2xl);
+    border: 1px solid var(--input);
+    background: var(--background);
+    padding-block: 0.75rem;
+    padding-inline: 1rem;
+    font-size: 1rem;
+    line-height: 1.4;
+    color: var(--foreground);
+  }
 
-.field-input::placeholder {
-  color: var(--muted-foreground);
-}
+  .field-input::placeholder {
+    color: var(--muted-foreground);
+  }
 
-.field-input:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--ring);
+  .field-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--ring);
+  }
 }
 
 @media (pointer: coarse) {
@@ -215,9 +217,14 @@
   }
 }
 
-.delivery-map-pin {
+.delivery-map-pin,
+.delivery-restaurant-pin {
   background: none !important;
   border: none !important;
+}
+
+.delivery-restaurant-pin {
+  filter: drop-shadow(0 2px 3px rgba(45, 18, 40, 0.35));
 }
 
 @keyframes cart-badge-pop {
